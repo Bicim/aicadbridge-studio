@@ -3,3 +3,10 @@ dist/
 *.log
 .DS_Store
 Thumbs.db
+
+# Cevre dosyalari: VITE_* degiskenleri derlenen pakete GOMULUR -
+# buraya asla gercek anahtar yazma (anahtarlar site icerisinde,
+# Ayarlar'dan localStorage'a girilir)
+.env
+.env.*
+!.env.example
