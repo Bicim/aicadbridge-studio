@@ -8,13 +8,15 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { runPipeline } from './ai/pipeline';
 import { executeIR } from './core/executor';
 import { buildSliders, clampValue, defaultValues, type SliderSpec } from './core/parameters';
-import { exportIR, exportSTL, exportGLTF } from './core/export';
+import { exportIR, exportSTL, exportGLTF, exportGLB, export3MF } from './core/export';
+import { analyzeDfam, dfamRedesignPrompt, type DfamReport, type ProcessId } from './core/dfam';
 import type { ExecutedPart, ModelIR, Plan } from './core/types';
 import type { VerificationReport } from './core/verify';
 import { useSettings } from './state';
 import { Viewer } from './ui/Viewer';
 import { Sliders } from './ui/Sliders';
 import { SettingsDialog } from './ui/SettingsDialog';
+import { DfamPanel } from './ui/DfamPanel';
 
 interface ChatEntry {
   id: number;
@@ -47,6 +49,8 @@ export function App() {
   const [frameKey, setFrameKey] = useState('');
   const [sliderSpecs, setSliderSpecs] = useState<SliderSpec[]>([]);
   const [paramValues, setParamValues] = useState<Record<string, number>>({});
+  const [dfam, setDfam] = useState<DfamReport | null>(null);
+  const [dfamBusy, setDfamBusy] = useState(false);
   const irRef = useRef<ModelIR | null>(null);
 
   const push = useCallback((entry: Omit<ChatEntry, 'id'>) => {
@@ -58,6 +62,7 @@ export function App() {
     setIr(nextIr);
     setPlan(nextPlan);
     setVerification(verify);
+    setDfam(null);
     const specs = buildSliders(nextIr);
     setSliderSpecs(specs);
     const values = defaultValues(nextIr);
@@ -117,6 +122,7 @@ export function App() {
       try {
         const result = executeIR(irRef.current!, { overrides: next });
         setParts(result.parts);
+        setDfam(null); // geometri değişti; rapor eskidi
       } catch {
         // Geçersiz ara değer: modeli olduğu gibi bırak
       }
@@ -131,8 +137,27 @@ export function App() {
     try {
       const result = executeIR(irRef.current, { overrides: values });
       setParts(result.parts);
+      setDfam(null);
     } catch { /* yok */ }
   }, []);
+
+  const runDfam = useCallback((process: ProcessId) => {
+    if (parts.length === 0 || dfamBusy) return;
+    setDfamBusy(true);
+    try {
+      setDfam(analyzeDfam(parts, process));
+    } catch (e) {
+      push({ role: 'status', text: 'DfAM analizi başarısız: ' + (e as Error).message, ok: false });
+    } finally {
+      setDfamBusy(false);
+    }
+  }, [parts, dfamBusy, push]);
+
+  const sendDfam = useCallback(() => {
+    if (!dfam || running) return;
+    const prompt = dfamRedesignPrompt(dfam);
+    if (prompt) void send(prompt);
+  }, [dfam, running, send]);
 
   const hasModel = parts.length > 0 && ir !== null;
   const ready = settings.apiKey !== '' && settings.model !== '';
@@ -154,6 +179,8 @@ export function App() {
           {hasModel ? (
             <>
               <button className="btn btn--ghost btn--sm" onClick={() => exportSTL(parts, ir.name || 'model')}>STL</button>
+              <button className="btn btn--ghost btn--sm" onClick={() => export3MF(parts, ir.name || 'model')}>3MF</button>
+              <button className="btn btn--ghost btn--sm" onClick={() => exportGLB(parts, ir.name || 'model')}>GLB</button>
               <button className="btn btn--ghost btn--sm" onClick={() => exportGLTF(parts, ir.name || 'model')}>GLTF</button>
               <button className="btn btn--ghost btn--sm" onClick={() => exportIR(ir)}>JSON</button>
             </>
@@ -249,6 +276,13 @@ export function App() {
             </div>
           ) : null}
           {statsLine ? <div className="stage__stats">{statsLine}</div> : null}
+          <DfamPanel
+            report={dfam}
+            busy={dfamBusy}
+            hasModel={hasModel}
+            onRun={runDfam}
+            onSend={sendDfam}
+          />
           <Sliders
             specs={sliderSpecs}
             values={paramValues}
