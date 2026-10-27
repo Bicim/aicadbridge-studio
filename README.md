@@ -59,7 +59,7 @@ tests/     vitest
 
 - Fillet/chamfer yok (CSG motoru kavisli kenar desteklemez); basamaklı yaklaşım gerekir.
 - Doğrulama sayısaldır; görsel (vision) denetim yol haritasında.
-- DfAM: delik çapı / pozitif detay / köprü limitleri henüz ölçülmez (text-to-cad'de de ölçülmez); toz süreçlerinde sıkışan toz tahliyesi kontrol edilmez. Duvar kalınlığı ray-cast örneklemidir (örneklenen asgari), 250 binden fazla üçgende atlanır.
+- DfAM: delik çapı / pozitif detay / köprü limitleri henüz ölçülmez (text-to-cad'de de ölçülmez); toz süreçlerinde sıkışan toz tahliyesi kontrol edilmez. Duvar kalınlığı ray-cast örneklemidir (örneklenen asgari), 250 binden fazla üçgende atlanır. Kapanma testi T-eksem farkındalıklıdır: boolean CSG dikişlerindeki T-tepe noktalı ama geometrik olarak mühürlü yüzeyler kapalı sayılır (gerçek boşluklar ölçülür).
 - segments 512+ önerilmez (tarayıcı performansı).
 
 ## Lisans

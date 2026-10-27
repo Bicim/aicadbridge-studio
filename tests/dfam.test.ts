@@ -52,6 +52,16 @@ describe('dfam - mesh gerçekleri', () => {
     expect(meshFacts([part]).watertight).toBe(false);
   });
 
+  it('CSG dikişleri: T-eksemli ama mühürlü -> kapalı sayılır', () => {
+    // three-bvh-csg birleşiminde yan yüzler bölünmemiş, alt yüz bölünmüş
+    // kenar zinciriyle bağlanir (T-tepe noktasi). Geometri mühürlüdür.
+    const facts = meshFacts(partsOf(tableIr()));
+    expect(facts.open_edges).toBeGreaterThan(0);
+    expect(facts.uncovered_edges).toBe(0);
+    expect(facts.t_seams).toBe(true);
+    expect(facts.watertight).toBe(true);
+  });
+
   it('ölçek ipucu: 1 mm altı çapraz kutu şüpheli', () => {
     const part: ExecutedPart = { geometry: new THREE.BoxGeometry(0.2, 0.3, 0.1) };
     expect(scaleHint([part]).units_suspect).toBe(true);

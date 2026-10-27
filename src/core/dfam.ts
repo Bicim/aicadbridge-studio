@@ -105,6 +105,10 @@ export interface MeshFacts {
   triangle_count: number;
   watertight: boolean;
   body_count: number;
+  /** T-eksem farkındalıklı testin ayrıntısı (bkz. watertightFacts) */
+  open_edges: number;
+  uncovered_edges: number;
+  t_seams: boolean;
 }
 
 export interface ScaleHint {
@@ -153,48 +157,129 @@ export interface OrientationCandidate {
   build_height_mm: number;
 }
 
-/** Kenar-akışkan kapalılık testi: her kenar tam iki üçgende paylaşılmalı. */
-function isWatertight(geometry: THREE.BufferGeometry): boolean {
+export interface WatertightFacts {
+  watertight: boolean;
+  /** Tam iki üçgenle paylaşılmayan kenar sayısı */
+  open_edges: number;
+  /** Doğrusal çakışık komşu kenarlarla kapatılamayan (gerçek boşluk) kenar sayısı */
+  uncovered_edges: number;
+  /** T-tepe noktalı dikiş var mı (CSG motorlarının normal çıktısı) */
+  t_seams: boolean;
+}
+
+/**
+ * Kapanma testi — T-eksem farkındalıklı.
+ * Katı kural (her kenar tam 2 üçgen) three-bvh-csg çıktısında her modelde
+ * ihlal edilir: boolean dikişlerinde bir yüz bölünmemiş kenarla, öbürü
+ * bölünmüş kenar zinciriyle bağlanır (T-tepe noktası). Bu yüzeyler
+ * geometrik olarak mühürlüdür (hacim/alan doğru, dilimleyici kabul
+ * eder). Bu yüzden açık kalan her kenar, aynı doğru üzerindeki diğer
+ * kenar segmentlerinin birleşimiyle tamamen örtülüyorsa yüzey kapalı
+ * sayılır; örtülemeyen kenar gerçek bir boşluktur.
+ */
+function watertightFacts(geometry: THREE.BufferGeometry): WatertightFacts {
+  const none: WatertightFacts = { watertight: false, open_edges: 0, uncovered_edges: 0, t_seams: false };
   const pos = geometry.attributes.position as THREE.BufferAttribute;
-  if (!pos) return false;
+  if (!pos) return none;
   const index = geometry.index;
   const count = index ? index.count : pos.count;
-  if (count < 6) return false;
+  if (count < 6) return none;
   // Aynı konumdaki köşeleri tek kimlikte birleştir (CSG çıktısı indekssiz olabilir).
   const vertexId = new Map<string, number>();
+  const coords: Array<[number, number, number]> = [];
   const ids = new Int32Array(pos.count);
-  let nextId = 0;
   for (let v = 0; v < pos.count; v++) {
     const key = `${Math.round(pos.getX(v) * 1e5)},${Math.round(pos.getY(v) * 1e5)},${Math.round(pos.getZ(v) * 1e5)}`;
     let id = vertexId.get(key);
-    if (id === undefined) { id = nextId++; vertexId.set(key, id); }
+    if (id === undefined) { id = coords.length; coords.push([pos.getX(v), pos.getY(v), pos.getZ(v)]); vertexId.set(key, id); }
     ids[v] = id;
   }
   const edgeCount = new Map<string, number>();
+  const edgeVerts = new Map<string, [number, number]>();
   for (let i = 0; i + 2 < count; i += 3) {
     const a = ids[index ? index.getX(i) : i];
     const b = ids[index ? index.getX(i + 1) : i + 1];
     const c = ids[index ? index.getX(i + 2) : i + 2];
-    if (a === b || b === c || a === c) return false; // dejenere üçgen
+    if (a === b || b === c || a === c) {
+      return { watertight: false, open_edges: 0, uncovered_edges: 1, t_seams: false }; // dejenere üçgen
+    }
     for (const [p, q] of [[a, b], [b, c], [c, a]] as Array<[number, number]>) {
       const key = p < q ? `${p}_${q}` : `${q}_${p}`;
       edgeCount.set(key, (edgeCount.get(key) ?? 0) + 1);
+      edgeVerts.set(key, [p, q]);
     }
   }
-  for (const n of edgeCount.values()) if (n !== 2) return false;
-  return true;
+  const open: Array<[number, number]> = [];
+  for (const [key, n] of edgeCount) if (n !== 2) open.push(edgeVerts.get(key)!);
+  if (open.length === 0) return { watertight: true, open_edges: 0, uncovered_edges: 0, t_seams: false };
+  // Kapsama testi pahalı olabilir; çok fazla açık kenarda muhafazakar kal.
+  if (open.length > 2000) {
+    return { watertight: false, open_edges: open.length, uncovered_edges: open.length, t_seams: false };
+  }
+
+  const sub = (p: [number, number, number], q: [number, number, number]) =>
+    [q[0] - p[0], q[1] - p[1], q[2] - p[2]] as [number, number, number];
+  const dot = (u: [number, number, number], v: [number, number, number]) => u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+  const cross = (u: [number, number, number], v: [number, number, number]) =>
+    [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]] as [number, number, number];
+  const norm = (u: [number, number, number]) => Math.hypot(u[0], u[1], u[2]);
+  const TOL = 1e-5;
+
+  const all = [...edgeVerts.values()];
+  let uncovered = 0;
+  for (const [a, b] of open) {
+    const pa = coords[a], pb = coords[b];
+    const d = sub(pa, pb);
+    const L = norm(d);
+    if (L < TOL) continue; // sıfır uzunluklu kenar zaten örtülü sayılır
+    const u: [number, number, number] = [d[0] / L, d[1] / L, d[2] / L];
+    const intervals: Array<[number, number]> = [];
+    for (const [c1, c2] of all) {
+      if (c1 === a && c2 === b) continue;
+      const pc = coords[c1], pd = coords[c2];
+      const d2 = sub(pc, pd);
+      const L2 = norm(d2);
+      if (L2 < TOL) continue;
+      const u2: [number, number, number] = [d2[0] / L2, d2[1] / L2, d2[2] / L2];
+      if (norm(cross(u, u2)) > 1e-6) continue; // paralel değil
+      if (norm(cross(u, sub(pa, pc))) > 1e-4) continue; // aynı doğru değil
+      const t1 = dot(sub(pa, pc), u);
+      const t2 = dot(sub(pa, pd), u);
+      intervals.push([Math.min(t1, t2), Math.max(t1, t2)]);
+    }
+    intervals.sort((x, y) => x[0] - y[0]);
+    let covered = 0;
+    let fail = false;
+    for (const [s, e] of intervals) {
+      if (s > covered + TOL) { fail = true; break; }
+      covered = Math.max(covered, e);
+    }
+    if (covered < L - TOL) fail = true;
+    if (fail) uncovered++;
+  }
+  return {
+    watertight: uncovered === 0,
+    open_edges: open.length,
+    uncovered_edges: uncovered,
+    t_seams: open.length > 0 && uncovered === 0
+  };
 }
 
 export function meshFacts(parts: ExecutedPart[]): MeshFacts {
   const box = new THREE.Box3();
-  let volume = 0, area = 0, triangles = 0, watertight = true;
+  let volume = 0, area = 0, triangles = 0;
+  let watertight = true, openEdges = 0, uncoveredEdges = 0, tSeams = false;
   for (const part of parts) {
     part.geometry.computeBoundingBox();
     if (part.geometry.boundingBox) box.union(part.geometry.boundingBox);
     volume += Math.abs(meshVolume(part.geometry));
     triangles += (part.geometry.index ? part.geometry.index.count : part.geometry.attributes.position.count) / 3;
     area += extractFaces(part.geometry).totalArea;
-    if (!isWatertight(part.geometry)) watertight = false;
+    const w = watertightFacts(part.geometry);
+    openEdges += w.open_edges;
+    uncoveredEdges += w.uncovered_edges;
+    if (w.t_seams) tSeams = true;
+    if (!w.watertight) watertight = false;
   }
   const size = new THREE.Vector3();
   box.getSize(size);
@@ -204,7 +289,10 @@ export function meshFacts(parts: ExecutedPart[]): MeshFacts {
     surface_area_mm2: round(area, 1),
     triangle_count: Math.round(triangles),
     watertight,
-    body_count: parts.length
+    body_count: parts.length,
+    open_edges: openEdges,
+    uncovered_edges: uncoveredEdges,
+    t_seams: tSeams
   };
 }
 
@@ -540,7 +628,7 @@ export function analyzeDfam(parts: ExecutedPart[], processId: ProcessId, options
 
   // Aileler ayrı ayrı düşer (araçtaki _safe deseni); rapor kalan gerçekleri yitirmez.
   let mesh: MeshFacts;
-  try { mesh = meshFacts(parts); } catch (e) { mesh = { bbox_mm: [0, 0, 0], volume_mm3: 0, surface_area_mm2: 0, triangle_count: 0, watertight: false, body_count: 0 }; partialSections.push('mesh'); void e; }
+  try { mesh = meshFacts(parts); } catch (e) { mesh = { bbox_mm: [0, 0, 0], volume_mm3: 0, surface_area_mm2: 0, triangle_count: 0, watertight: false, body_count: 0, open_edges: 0, uncovered_edges: 0, t_seams: false }; partialSections.push('mesh'); void e; }
   let scale: ScaleHint;
   try { scale = scaleHint(parts); } catch { scale = { bbox_diagonal_mm: 0, units_suspect: false, note: '' }; partialSections.push('scale'); }
   let over = overhangFacts(parts, angleLimit);
@@ -555,14 +643,16 @@ export function analyzeDfam(parts: ExecutedPart[], processId: ProcessId, options
       ? {
           id: 'watertight', status: 'pass', severity: 0,
           title: 'Ağ su geçirmez',
-          detail: 'Her kenar tam iki üçgen tarafından paylaşılıyor; dilimleme için engel yok.',
-          source: 'kenar-akışkan testi (dfam.ts)'
+          detail: mesh.t_seams
+            ? `Yüzey geometrik olarak mühürlü: ${mesh.open_edges} kenar T-tepe noktalı dikişten açık kalıyor ama hepsi çakışık komşu kenarlarla örtülü (boolean CSG dikişlerinin normali; hacim ve alan tutarlı).`
+            : 'Her kenar tam iki üçgen tarafından paylaşılıyor; dilimleme için engel yok.',
+          source: 'T-eksem farkındalıklı kenar testi (dfam.ts)'
         }
       : {
           id: 'watertight', status: 'fail', severity: 0,
           title: 'Ağ su geçirmez değil',
-          detail: 'Açık ya da fazla paylaşılan kenarlar var; her süreçte dilimlemeyi engeller.',
-          measured: 'watertight = false', limit: 'watertight = true',
+          detail: `${mesh.uncovered_edges} kenarın çakışık komşusu yok (gerçek boşluk); her süreçte dilimlemeyi engeller.`,
+          measured: `örtülemeyen kenar = ${mesh.uncovered_edges}`, limit: 'örtülemeyen kenar = 0',
           source: 'ISO/ASTM 52910 §6 (dfam.ts kenar testi)',
           redesign: 'Modeli kapalı katı gövdeler olarak yeniden kur (delikleri tam geçiren difference ile aç, birleşimlerde iç yüz bırakma).'
         });
