@@ -17,6 +17,9 @@ import { Viewer } from './ui/Viewer';
 import { Sliders } from './ui/Sliders';
 import { SettingsDialog } from './ui/SettingsDialog';
 import { DfamPanel } from './ui/DfamPanel';
+import { InspectionSheet } from './ui/InspectionSheet';
+import type { InspectionView } from './core/snapshot';
+import type { VisionReport } from './ai/vision';
 
 interface ChatEntry {
   id: number;
@@ -51,6 +54,8 @@ export function App() {
   const [paramValues, setParamValues] = useState<Record<string, number>>({});
   const [dfam, setDfam] = useState<DfamReport | null>(null);
   const [dfamBusy, setDfamBusy] = useState(false);
+  const [inspection, setInspection] = useState<InspectionView[] | null>(null);
+  const [vision, setVision] = useState<VisionReport | null>(null);
   const irRef = useRef<ModelIR | null>(null);
 
   const push = useCallback((entry: Omit<ChatEntry, 'id'>) => {
@@ -94,6 +99,8 @@ export function App() {
         push({ role: 'status', text: message, ok });
       });
       const applied = applyModel(result.ir, result.plan, result.verification);
+      setInspection(result.inspection);
+      setVision(result.vision);
       push({
         role: 'assistant',
         text: result.verification.ok
@@ -101,6 +108,11 @@ export function App() {
           : `"${result.plan.name}" uyarılarla tamamlandı. ${result.verification.summary}`,
         ok: result.verification.ok
       });
+      if (result.vision && !result.vision.ok) {
+        for (const issue of result.vision.issues) {
+          push({ role: 'status', text: '⚠ Görsel denetim: ' + issue, ok: false });
+        }
+      }
       if (!result.verification.ok && applied) {
         for (const issue of result.verification.issues) {
           push({ role: 'status', text: '⚠ ' + issue, ok: false });
@@ -241,6 +253,12 @@ export function App() {
               {showCode && ir ? (
                 <pre className="code-block">{JSON.stringify(ir, null, 2)}</pre>
               ) : null}
+            </div>
+          ) : null}
+
+          {inspection && inspection.length > 0 ? (
+            <div className="meta-panel">
+              <InspectionSheet views={inspection} report={vision} />
             </div>
           ) : null}
 

@@ -15,11 +15,15 @@ export interface AiConfig {
   model: string;
   /** custom için: OpenAI-uyumlu kök URL (ör. https://api.deepseek.com/v1) */
   baseUrl?: string;
+  /** Görsel doğrulama (6 görünümlü denetim sayfası) açık mı; yoksa true sayılır */
+  vision?: boolean;
 }
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
+  /** PNG data URL'leri; yalnız user mesajlarında, görsel destekli modellerde */
+  images?: string[];
 }
 
 export interface ChatOptions {
@@ -56,6 +60,13 @@ async function readError(res: Response): Promise<string> {
     detail = body.slice(0, 400);
   } catch { /* gövde okunamadı */ }
   return `HTTP ${res.status} ${res.statusText}${detail ? ' · ' + detail : ''}`;
+}
+
+/** data URL'ini mime + base64 parçalarına ayırır. */
+function dataUrlParts(url: string): { mime: string; base64: string } {
+  const m = /^data:([^;]+);base64,([\s\S]*)$/.exec(url.trim());
+  if (!m) throw new Error('Görsel beklenen biçimde değil (data:image/png;base64,... gerekiyor).');
+  return { mime: m[1], base64: m[2] };
 }
 
 /* ---------------- modelleri listele ---------------- */
@@ -118,7 +129,18 @@ async function chatAnthropic(cfg: AiConfig, opts: ChatOptions): Promise<string> 
       model: cfg.model,
       max_tokens: opts.maxTokens ?? 8000,
       system: opts.system,
-      messages: opts.messages.map((m) => ({ role: m.role, content: m.content }))
+      messages: opts.messages.map((m) => ({
+        role: m.role,
+        content: m.images?.length
+          ? [
+              ...m.images.map((url) => {
+                const { mime, base64 } = dataUrlParts(url);
+                return { type: 'image', source: { type: 'base64', media_type: mime, data: base64 } };
+              }),
+              { type: 'text', text: m.content }
+            ]
+          : m.content
+      }))
     })
   });
   if (!res.ok) throw new Error(await readError(res));
@@ -141,7 +163,15 @@ async function chatGoogle(cfg: AiConfig, opts: ChatOptions): Promise<string> {
       systemInstruction: { parts: [{ text: opts.system }] },
       contents: opts.messages.map((m) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
-        parts: [{ text: m.content }]
+        parts: m.images?.length
+          ? [
+              ...m.images.map((url) => {
+                const { mime, base64 } = dataUrlParts(url);
+                return { inline_data: { mime_type: mime, data: base64 } };
+              }),
+              { text: m.content }
+            ]
+          : [{ text: m.content }]
       })),
       generationConfig: { maxOutputTokens: opts.maxTokens ?? 8000 }
     })
@@ -167,7 +197,15 @@ async function chatOpenAiCompatible(cfg: AiConfig, opts: ChatOptions): Promise<s
       max_tokens: opts.maxTokens ?? 8000,
       messages: [
         { role: 'system', content: opts.system },
-        ...opts.messages.map((m) => ({ role: m.role, content: m.content }))
+        ...opts.messages.map((m) => ({
+          role: m.role,
+          content: m.images?.length
+            ? [
+                { type: 'text', text: m.content },
+                ...m.images.map((url) => ({ type: 'image_url', image_url: { url } }))
+              ]
+            : m.content
+        }))
       ]
     })
   });

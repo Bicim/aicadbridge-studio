@@ -116,6 +116,18 @@ export function SettingsDialog({ settings, onClose, onSave }: Props) {
           </div>
         ) : null}
 
+        <label className="field field--check">
+          <input
+            type="checkbox"
+            checked={settings.vision !== false}
+            onChange={(e) => onSave({ vision: e.target.checked })}
+          />
+          <span>
+            Görsel doğrulama
+            <small>Üretim sonrası modeli 6 yönden fotoğraflayıp görüntü destekli modele denetletir (CADAM denetim sayfası). Görsel destekleyen bir model gerekir; kapatınca yalnızca sayısal doğrulama yapılır.</small>
+          </span>
+        </label>
+
         <div className="modal__row modal__row--end">
           <button className="btn btn--primary" onClick={onClose}>Tamam</button>
         </div>

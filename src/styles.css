@@ -382,6 +382,64 @@ input, select, textarea { font: inherit; color: var(--text-1); }
   padding-top: 4px;
 }
 
+/* --- Denetim sayfası ---------------------------------------- */
+
+.inspection__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 6px;
+}
+.inspection__cell {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.inspection__cell img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--radius-s);
+  border: 1px solid var(--line);
+  background: #f2f1ee;
+  display: block;
+}
+.inspection__cell figcaption {
+  font-size: 10px;
+  color: var(--text-3);
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.inspection__issues {
+  margin: 8px 0 0;
+  padding-left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+  color: #ffb0b0;
+}
+
+/* --- Ayar onay kutusu ---------------------------------------- */
+
+.field--check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.field--check input {
+  margin-top: 3px;
+  accent-color: var(--accent);
+}
+.field--check small {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-3);
+}
+
 /* --- Butonlar ------------------------------------------------ */
 
 .btn {

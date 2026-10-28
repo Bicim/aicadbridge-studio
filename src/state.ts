@@ -17,7 +17,7 @@ export function loadSettings(): AiConfig {
       if (parsed && typeof parsed.provider === 'string') return parsed;
     }
   } catch { /* bozuk kayıt: varsayılana dön */ }
-  return { provider: 'openai', apiKey: '', model: '', baseUrl: '' };
+  return { provider: 'openai', apiKey: '', model: '', baseUrl: '', vision: true };
 }
 
 export function useSettings() {

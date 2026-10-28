@@ -13,13 +13,15 @@ Cümle ──▶ PLANNER (niyet → plan JSON: adımlar, parametreler, beklentil
       ──▶ CODER (plan → ModelIR: geometri ara temsili, JSON)
       ──▶ EXECUTOR (ModelIR + parametreler → three.js + CSG → mesh)
       ──▶ VERIFY (ölçüler/hacim/parça sayısı vs plan beklentileri)
+      ──▶ GÖRSEL DENETİM (6 görünümlü denetim sayfası → görüntü modeli)
       └─ sorun varsa ▶ HEALER (en fazla 3 deneme: hatayı oku, IR'ı düzelt)
 ```
 
 - **ModelIR**: kendi geometri ara temsilimiz. İlkel (box, cylinder, sphere, cone, torus), boolean (union/difference/intersection), dönüşüm (translate/rotate/mirror) ve desenler (`pattern_circular` cıvata deliği çemberleri için). Sayı alanlarında parametre ifadeleri: `"dis_cap/2 - duvar"`.
 - **Parametrik**: Planner her ölçüyü min/max/step ile tanımlar; kaydırıcılar modeli anında yeniden kurar.
 - **Self-healing**: çalıştırma hatası ya da doğrulama sapması modele geri verilir, IR düzeltilir (3 denemeye dek).
-- **Doğrulama**: beklenti bbox/hacim/parça sayısı vs ölçülen (CADAM analizindeki "denetim sayfası" kavramının sayısal MVP karşılığı; görsel denetim yolda).
+- **Doğrulama**: beklenti bbox/hacim/parça sayısı vs ölçülen (CADAM analizindeki "denetim sayfası" kavramının sayısal MVP karşılığı).
+- **Görsel denetim (CADAM P1)**: sayısal doğrulama geçince model 6 yönden (izometrik, ön, arka, sağ, sol, üst) offscreen render edilir; denetim sayfası görüntü destekli modele gönderilir ve `{ok, issues}` kararı çıkarılır. Sorunlar Healer'a geri verilir (görsel doğrulama döngüsü). Ayarlar'dan kapatılabilir; görsel destekli model yoksa sessizce sayısal doğrulamaya düşer.
 - **Üretilebilirlik denetimi (DfAM)**: [text-to-cad](https://github.com/earthtojake/text-to-cad) (MIT) projesinin DfAM sistemi portlanmıştır — model yerel olarak **ölçülür** (duvar kalınlığı ray-cast örneklemi, aşırı açı haritası, destek hacmi prizma üst sınırı, 6 kurulum yönü adayı, birim ölçeği ipucu, kenar-akışkan kapalılık) ve bulgular süreç limitleriyle (FDM / SLA / SLS / MJF / PBF-LB; Hubs, Formlabs, HP, EOS kılavuzları, ISO/ASTM 52910 çerçevesi) karşılaştırılır. Her bulgu ölçülen değeri, limiti ve kaynağı gösterir; her ihlal için sayılı yeniden tasarım talimatı üretir ve **AI'ya gönder** ile self-healing akışına geri verir.
 
 ## Kullanım
@@ -37,7 +39,7 @@ Cümle ──▶ PLANNER (niyet → plan JSON: adımlar, parametreler, beklentil
 ```bash
 npm install
 npm run dev       # http://localhost:5173
-npm test          # vitest: ifade değerlendirici, CSG çalıştırıcı, doğrulama, parametreler, DfAM, 3MF (49 test)
+npm test          # vitest: ifade, executor, doğrulama, parametreler, DfAM, 3MF, görsel doğrulama (66 test)
 npm run build     # tsc + vite (dist/)
 ```
 
@@ -47,10 +49,10 @@ npm run build     # tsc + vite (dist/)
 src/
   core/    types (Plan/ModelIR), expr (güvenli ifadeler), executor (CSG),
            volume, verify, parameters (slider), dfam (üretilebilirlik),
-           export (STL/3MF/GLB/GLTF/JSON)
-  ai/      providers (çoklu sağlayıcı, tarayıcıdan), prompts (TR),
-            pipeline (iki aşama + self-healing)
-  ui/      Viewer (three.js), Sliders, DfamPanel, SettingsDialog
+           snapshot (6 görünümlü denetim sayfası), export (STL/3MF/GLB/GLTF/JSON)
+  ai/      providers (çoklu sağlayıcı + görsel, tarayıcıdan), prompts (TR),
+           pipeline (iki aşama + self-healing + görsel denetim), vision
+  ui/      Viewer (three.js), Sliders, DfamPanel, InspectionSheet, SettingsDialog
   App.tsx  orkestrasyon
 tests/     vitest
 ```
@@ -58,8 +60,7 @@ tests/     vitest
 ## Kısıtlar (v0.1.0)
 
 - Fillet/chamfer yok (CSG motoru kavisli kenar desteklemez); basamaklı yaklaşım gerekir.
-- Doğrulama sayısaldır; görsel (vision) denetim yol haritasında.
-- DfAM: delik çapı / pozitif detay / köprü limitleri henüz ölçülmez (text-to-cad'de de ölçülmez); toz süreçlerinde sıkışan toz tahliyesi kontrol edilmez. Duvar kalınlığı ray-cast örneklemidir (örneklenen asgari), 250 binden fazla üçgende atlanır. Kapanma testi T-eksem farkındalıklıdır: boolean CSG dikişlerindeki T-tepe noktalı ama geometrik olarak mühürlü yüzeyler kapalı sayılır (gerçek boşluklar ölçülür).
+- Görsel denetim, görüntü destekli bir model gerektirir (gpt-4o, claude, gemini gibi); desteklenmiyorsa sayısal doğrulamaya sessizce düşer. Görüntüler modelin biçimsel doğruluğunu denetler, milimetrik hassasiyeti değil.
 - segments 512+ önerilmez (tarayıcı performansı).
 
 ## Lisans

@@ -110,3 +110,24 @@ IR'ı DÜZELT ve TAMAMINI tekrar döndür (kısmi diff değil, eksiksiz yeni JSO
 }
 
 export const HEALER_SYSTEM = `Sen "AI CAD Studio Healer"sın: hatalı ya da doğrulamadan geçemeyen ModelIR JSON'unu onaran motor. Aynı şemaya, aynı parametre adlarına sadık kal; yalnızca sorunun kaynağını düzelt. Sorun metinlerindeki ölçüm ve beklentileri kullan (ör. "y boyutu uyuşmuyor: beklenen 80" ise geometriyi ölçekle/konumla). Yalnızca JSON döndür.`;
+
+/* ---------------- Görsel denetim (CADAM P1: denetim sayfası) ---------------- */
+
+export const VISION_SYSTEM = `Sen "AI CAD Studio Görsel Denetçisi"sün: üretilen 3B modelin altı görünümden fotoğraflarını (izometrik, ön, arka, sağ, sol, üst) inceleyip kullanıcının isteğine uygunluğu denetleyen kalite kontrol motoru. Bu, CADAM'deki "çok görünümlü denetim sayfası" kavramının karşılığıdır.
+
+KURALLAR:
+- Altı görünüm AYNI modelin farklı yönlerinden: hepsine birlikte bakarak üç boyutlu biçimi zihninde kur; tek görünümden karar verme.
+- Ölçüt kullanıcının İSTEĞİDİR: istenen nesne üretilmiş mi; belirgin eksik/fazlalık/kusur var mı (delik eksik ya da hiç açılmamış, simetri bozuk, parça kaymış/çıkmış, çift kopya, taban düzlemini delip geçme, aşırı incelme, tepede tıkanmış boşluk).
+- Üçgenleme pürüzleri, CSG dikiş çizgileri, gölgeleme/renk farkları ve milimetrik sayısal sapmalar DEĞİL: bunları sorun sayma. Yalnızca biçimsel doğruluk.
+- Emin olamadığın şeyi sorun sayma; yalnızca görüntülerden DOĞRUDAN görülebilen kusurları raporla.
+- Yalnızca JSON döndür, açıklama/markdown yok:
+{ "ok": true, "issues": [] }
+- Uygunsa issues boş dizi. Sorun varsa en fazla 5 madde; her biri tek cümle ve konumuyla somut (ör. "üstten görünümde 4 cıvata deliğinden yalnız 2'si görünüyor").`;
+
+export function buildVisionUserPrompt(userPrompt: string, planName: string, steps: string[]): string {
+  return `Kullanıcının isteği: "${userPrompt}"
+
+Üretim planı: "${planName}" · adımlar: ${steps.join(' · ')}
+
+Modelin altı görünümü ektedir (sırayla: izometrik, ön, arka, sağ, sol, üst). İsteğe uygunluğu denetle ve yalnızca JSON döndür.`;
+}

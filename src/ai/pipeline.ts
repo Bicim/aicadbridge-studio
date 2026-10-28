@@ -11,6 +11,8 @@ import {
   PLANNER_SYSTEM, CODER_SYSTEM, HEALER_SYSTEM,
   buildPlannerUserPrompt, buildCoderUserPrompt, buildHealerUserPrompt
 } from './prompts';
+import { runVisionCheck, type VisionReport } from './vision';
+import type { InspectionView } from '../core/snapshot';
 import { executeIR } from '../core/executor';
 import { verifyExecution, type VerificationReport } from '../core/verify';
 import type { LogEntry, ModelIR, Plan, Stage } from '../core/types';
@@ -23,6 +25,10 @@ export interface PipelineResult {
   verification: VerificationReport;
   attempts: number;
   logs: LogEntry[];
+  /** Görsel denetim kararı; kapalıysa ya da yapılamadıysa null */
+  vision: VisionReport | null;
+  /** 6 görünümlü denetim sayfası (PNG data URL); görsel denetim yapıldıysa */
+  inspection: InspectionView[] | null;
 }
 
 export type ProgressFn = (stage: Stage, message: string, ok?: boolean) => void;
@@ -107,19 +113,38 @@ export async function runPipeline(
   let attempts = 0;
   let verification: VerificationReport | null = null;
   let lastError: string | null = null;
+  let vision: VisionReport | null = null;
+  let inspection: InspectionView[] | null = null;
 
   while (attempts < MAX_HEAL_ATTEMPTS) {
     attempts++;
+    vision = null; // her deneme kendi görsel denetimini üretir; eskisi asma
+    inspection = null;
     try {
       progress('execute', `Geometri kuruluyor (deneme ${attempts})...`);
       const result = executeIR(ir);
       progress('verify', 'Geometrik doğrulama...');
       verification = verifyExecution(plan, result.stats);
       if (verification.ok) {
-        progress('done', verification.summary, true);
-        return { plan, ir, verification, attempts, logs };
+        if (cfg.vision !== false) {
+          progress('verify', 'Görsel denetim (6 görünümlü denetim sayfası)...');
+          try {
+            const outcome = await runVisionCheck(cfg, userPrompt, plan, result.parts);
+            vision = outcome.report;
+            inspection = outcome.inspection;
+          } catch (e) {
+            // Görsel destekli model yoksa vb.: sessizce degrade et, sayısal sonucu koru
+            progress('verify', `Görsel denetim atlandı: ${(e as Error).message}`, false);
+          }
+        }
+        if (!vision || vision.ok) {
+          progress('done', verification.summary + (vision ? ' · görsel denetim uygun' : ''), true);
+          return { plan, ir, verification, attempts, logs, vision, inspection };
+        }
+        progress('heal', `Görsel denetim sorunları: ${vision.issues.length} adet`, false);
+      } else {
+        progress('heal', `Doğrulama sorunları: ${verification.issues.length} adet`, false);
       }
-      progress('heal', `Doğrulama sorunları: ${verification.issues.length} adet`, false);
       lastError = null;
     } catch (e) {
       lastError = (e as Error).message;
@@ -129,7 +154,12 @@ export async function runPipeline(
     if (attempts >= MAX_HEAL_ATTEMPTS) break;
 
     /* --- Healer --- */
-    const problems = lastError ? [lastError] : (verification?.issues ?? []);
+    const problems = lastError
+      ? [lastError]
+      : [
+          ...(verification?.issues ?? []),
+          ...(vision && !vision.ok ? vision.issues.map((i) => 'Görsel denetim: ' + i) : [])
+        ];
     progress('heal', `Onarım deneniyor (${attempts}/${MAX_HEAL_ATTEMPTS})...`);
     try {
       const healedText = await chat(cfg, {
@@ -158,5 +188,5 @@ export async function runPipeline(
   const finalResult = executeIR(ir);
   verification = verifyExecution(plan, finalResult.stats);
   progress('done', `Model ${verification.ok ? 'doğrulandı' : 'uyarılarla'} tamamlandı: ${verification.summary}`, verification.ok);
-  return { plan, ir, verification, attempts, logs };
+  return { plan, ir, verification, attempts, logs, vision, inspection };
 }
