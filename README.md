@@ -4,9 +4,18 @@ Tarayıcıda çalışan **text-to-CAD**: bir cümle yaz, Planner planı çıkars
 
 **Canlı:** https://bicim.github.io/aicadbridge-studio/
 
+## İki mod
+
+| Mod | Adres | Ne yapar |
+|---|---|---|
+| **Bulut** (varsayılan, giriş gerekir) | `#/` | Supabase oturumu; modeller [aicadbridge-cloud](https://github.com/Bicim/aicadbridge-cloud) API'sinde OCCT çekirdeğiyle kurulur (gerçek B-rep, STEP/STL/GLB). Görevler, projeler, takım, krediler, parametre kaydırıcıları, Fusion 360 / Blender / SolidWorks'e gönderme ([aicadbridge-connectors](https://github.com/Bicim/aicadbridge-connectors)). Kod: `src/cloud/`. |
+| **Yerel** (hesapsız) | `#/local` | Aşağıda anlatılan tarayıcı içi hat: kendi API anahtarın, three.js + CSG, backend yok. `VITE_SUPABASE_*` tanımlı değilse uygulama otomatik bu modda açılır. |
+
+Bulut modu için `.env.local` (bkz. `.env.example`): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_URL`, `VITE_SITE_URL`.
+
 ## Nasıl çalışır
 
-Fusion eklentisindeki mimarinin birebir web karşılığı (backend yok, tamamen istemci tarafı):
+Yerel mod (`#/local`), Fusion eklentisindeki mimarinin birebir web karşılığıdır (backend yok, tamamen istemci tarafı):
 
 ```
 Cümle ──▶ PLANNER (niyet → plan JSON: adımlar, parametreler, beklentiler)
