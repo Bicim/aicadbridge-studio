@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { api, ApiError, loadByok, saveByok, supabase, type AuditRow, type ByokSettings, type Device, type FileRow, type Me, type Plan, type Project, type Task, type Team } from './api';
+import { McpSetup } from './McpSetup';
 import { Composer, TaskView } from './TaskView';
 import './cloud.css';
 
@@ -243,6 +244,7 @@ function Integrations({ devices, me, query, onChanged }: { devices: Device[]; me
           </section>
         ))}
       </div>
+      <McpSetup />
     </div>
   );
 }
@@ -388,11 +390,27 @@ function Settings({ me }: { me: Me | null }) {
       </section>
       <section className="c-box">
         <h3>Hesap</h3>
-        <p className="c-dim">{me?.email}</p>
+        <div className="c-profile">
+          <Avatar me={me} />
+          <div>
+            <b>{me?.name || me?.email?.split('@')[0]}</b>
+            <p className="c-dim">{me?.email}</p>
+            <p className="c-fine">Giriş yöntemi: {me?.provider === 'google' ? 'Google' : me?.provider === 'email' ? 'E-posta' : me?.provider ?? '-'} · Plan: {me?.plan === 'free' ? 'Ücretsiz' : me?.plan === 'pro' ? 'Pro' : 'Takım'}</p>
+          </div>
+        </div>
+        <p className="c-fine">Görevlerin, modellerin ve dosyaların AICADBridge sunucusunda hesabına bağlı saklanır; başka kullanıcılar göremez.</p>
         <button className="c-btn" onClick={() => supabase!.auth.signOut()}>Çıkış yap</button>
       </section>
     </div>
   );
+}
+
+function Avatar({ me }: { me: Me | null }) {
+  const [broken, setBroken] = useState(false);
+  if (me?.avatar_url && !broken) {
+    return <img className="c-avatar-s" src={me.avatar_url} alt="" referrerPolicy="no-referrer" onError={() => setBroken(true)} />;
+  }
+  return <span className="c-avatar-s">{(me?.name || me?.email || '?').slice(0, 2).toUpperCase()}</span>;
 }
 
 /* ------------------------------------------------------------------ kabuk */
@@ -462,7 +480,7 @@ export function CloudApp() {
         <div className="c-side-foot">
           {!collapsed && me && <a className="c-credits" href="#/billing"><span className="c-mono">{me.credits}</span> kredi · {me.plan === 'free' ? 'Ücretsiz' : me.plan === 'pro' ? 'Pro' : 'Takım'}</a>}
           <a className="c-user" href="#/settings">
-            <span className="c-avatar-s">{(me?.name || me?.email || '?').slice(0, 2).toUpperCase()}</span>
+            <Avatar me={me} />
             {!collapsed && <span><b>{me?.name || me?.email?.split('@')[0]}</b><small>{me?.email}</small></span>}
           </a>
         </div>
