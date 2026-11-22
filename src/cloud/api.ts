@@ -9,7 +9,7 @@ export const supabase: SupabaseClient | null = SB_URL && SB_KEY ? createClient(S
 export const cloudConfigured = !!supabase;
 
 export interface Me {
-  id: string; email: string; name?: string; plan: 'free' | 'pro' | 'team';
+  id: string; email: string; name?: string; avatar_url?: string | null; provider?: string | null; plan: 'free' | 'pro' | 'team';
   credits: number; credits_period: 'day' | 'month'; credits_reset_at: string;
   billing_enabled: boolean; llm: { provider: string; model: string };
   team: { id: string; name: string; role: 'owner' | 'member' } | null;
