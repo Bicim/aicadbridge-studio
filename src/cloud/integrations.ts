@@ -3,6 +3,8 @@ import type { HostId } from './api';
 
 export type Status = 'ready' | 'beta' | 'folder' | 'soon';
 export type Special = 'mcp' | 'apikeys';
+/** Eklenti yerine bulut hesabı bağlantısı (API anahtarıyla bağlanan). */
+export type Cloud = 'onshape';
 
 export interface Entry {
   /** Oylama anahtarı (^[a-z0-9_]{1,40}$). Ana bilgisayar girdilerinde host kimliğiyle aynı. */
@@ -12,6 +14,8 @@ export interface Entry {
   status: Status;
   /** Bu girdiyi karşılayan bağlayıcı; bağlı cihaz eşleşmesi bununla yapılır. */
   host?: HostId;
+  /** Bulut-bulut bağlantı: kurulum programı yok, API anahtarıyla bağlanır. */
+  cloud?: Cloud;
   /** Kart yerine sayfadaki bölüme götürür. */
   special?: Special;
   /** Elle kurulum zip'i (kurulum programı yerine). */
@@ -32,7 +36,7 @@ export const CATALOG: Category[] = [
   {
     id: 'cad', title: 'CAD',
     entries: [
-      soon('onshape', 'Onshape', 'Planlanan: üretilen modeli açık Onshape belgene parça olarak ekler.'),
+      { id: 'onshape', name: 'Onshape', status: 'beta', cloud: 'onshape', desc: 'Modeli bulutta, eklenti kurmadan Onshape belgene parça olarak aktarır.' },
       {
         id: 'fusion', name: 'Autodesk Fusion', status: 'ready', host: 'fusion',
         desc: "Modeli Fusion'da yeni bileşen olarak açar.",

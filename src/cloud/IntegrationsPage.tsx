@@ -6,6 +6,7 @@ import {
   type Entry,
 } from './integrations';
 import { McpSetup } from './McpSetup';
+import { OnshapeConnect, useOnshapeLink, type OnshapeLink } from './OnshapePanel';
 
 const SITE_URL = ((import.meta.env.VITE_SITE_URL as string | undefined) ?? 'http://localhost:8124').replace(/\/$/, '');
 const ONLINE_MS = 90_000;
@@ -77,11 +78,13 @@ interface ModalProps {
   entry: Entry;
   devices: Device[];
   votes: Votes | null;
+  onshape: OnshapeLink | null;
+  onOnshapeChanged: () => void;
   onVote: (key: string) => Promise<void>;
   onClose: () => void;
 }
 
-function EntryModal({ entry, devices, votes, onVote, onClose }: ModalProps) {
+function EntryModal({ entry, devices, votes, onshape, onOnshapeChanged, onVote, onClose }: ModalProps) {
   const ref = useRef<HTMLDivElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const [busy, setBusy] = useState(false);
@@ -133,7 +136,14 @@ function EntryModal({ entry, devices, votes, onVote, onClose }: ModalProps) {
           </p>
         )}
 
-        {entry.status === 'beta' && (
+        {entry.cloud === 'onshape' && (
+          <>
+            <div className="c-note">Beta: bulut bağlantısı yeni; büyük modellerde Onshape'ın STEP çevirisi zaman alabilir.</div>
+            <OnshapeConnect link={onshape} onChanged={onOnshapeChanged} />
+          </>
+        )}
+
+        {entry.status === 'beta' && !entry.cloud && (
           <div className="c-note">Beta: bu programda henüz geniş test edilmedi; sorun olursa model STEP klasörüne düşer.</div>
         )}
 
@@ -203,6 +213,7 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
   const [open, setOpen] = useState<Entry | null>(null);
   const [votes, setVotes] = useState<Votes | null>(null);
   const [hasKeys, setHasKeys] = useState(false);
+  const { link: onshape, refresh: refreshOnshape } = useOnshapeLink();
 
   useEffect(() => {
     const t = window.setInterval(onChanged, 20_000);
@@ -230,7 +241,10 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
     const ds = e.host ? devices.filter((d) => d.host === e.host) : [];
     return { connected: ds.length > 0, online: ds.some(isOnline) };
   }, [devices]);
-  const isConnected = useCallback((e: Entry) => (e.special ? hasKeys : hostState(e).connected), [hasKeys, hostState]);
+  const isConnected = useCallback(
+    (e: Entry) => (e.cloud === 'onshape' ? !!onshape?.connected : e.special ? hasKeys : hostState(e).connected),
+    [hasKeys, hostState, onshape],
+  );
 
   const pick = (e: Entry) => {
     if (e.special) {
@@ -303,7 +317,7 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
           <div className="c-int-grid">
             {c.entries.map((e) => {
               const st = hostState(e);
-              const linked = e.special ? hasKeys : st.connected;
+              const linked = isConnected(e);
               return (
                 <button key={e.id} type="button" className="c-int-card" aria-haspopup={e.special ? undefined : 'dialog'} onClick={() => pick(e)}>
                   <Tile entry={e} />
@@ -312,7 +326,7 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
                     <span className="c-int-desc">{e.desc}</span>
                     <span className="c-int-badges">
                       <span className={`c-st ${e.status}`}>{STATUS_LABEL[e.status]}</span>
-                      {linked && <span className="c-st on"><Dot on={e.special ? true : st.online} />Bağlı</span>}
+                      {linked && <span className="c-st on"><Dot on={e.special || e.cloud ? true : st.online} />Bağlı</span>}
                     </span>
                   </span>
                 </button>
@@ -329,7 +343,7 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
 
       <McpSetup />
 
-      {open && <EntryModal entry={open} devices={devices} votes={votes} onVote={vote} onClose={close} />}
+      {open && <EntryModal entry={open} devices={devices} votes={votes} onshape={onshape} onOnshapeChanged={refreshOnshape} onVote={vote} onClose={close} />}
     </div>
   );
 }

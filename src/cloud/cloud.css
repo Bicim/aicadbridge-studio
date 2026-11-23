@@ -238,3 +238,10 @@ img.c-avatar-s { object-fit: cover; padding: 0; }
 .c-vote .c-note { margin: 0; }
 .c-vote .c-fine { margin: 0; }
 @media (max-width: 520px) { .c-int-grid { grid-template-columns: 1fr; } .c-modal { padding: 18px; } }
+
+/* Onshape bağlayıcısı */
+.c-os { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.c-os-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--text-2); }
+.c-os-field input { height: 36px; }
+.c-os .c-steps a, .c-os-note a { color: var(--accent); }
+.c-os-send { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
