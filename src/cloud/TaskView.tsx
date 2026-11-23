@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, generate, loadByok, type Device, type IRParam, type Me, type Msg } from './api';
 import { HOST_LABEL } from './integrations';
 import { ModelViewer } from './ModelViewer';
+import { OnshapeSend, useOnshapeLink, type OnshapeLink } from './OnshapePanel';
 
 const startedTasks = new Set<string>();
 
@@ -45,7 +46,7 @@ function fmt(n: number | undefined, d = 1) {
   return n === undefined ? '–' : Number(n).toLocaleString('tr-TR', { maximumFractionDigits: d });
 }
 
-function ModelCard({ msg, devices, onUpdated }: { msg: Msg; devices: Device[]; onUpdated: (m: Msg) => void }) {
+function ModelCard({ msg, devices, onshape, onUpdated }: { msg: Msg; devices: Device[]; onshape: OnshapeLink | null; onUpdated: (m: Msg) => void }) {
   const params: IRParam[] = (msg.ir?.parameters ?? []).filter((p) => typeof p.value === 'number' || p.min !== undefined);
   const current = msg.report?.parameters ?? {};
   const [vals, setVals] = useState<Record<string, number>>({});
@@ -125,7 +126,8 @@ function ModelCard({ msg, devices, onUpdated }: { msg: Msg; devices: Device[]; o
             </select>
             <button className="c-btn" onClick={sendTo}>Programa gönder</button>
           </span>
-        ) : <a className="c-btn ghost" href="#/integrations">Fusion / Blender / SolidWorks bağla</a>}
+        ) : !onshape?.connected && <a className="c-btn ghost" href="#/integrations">Fusion / Blender / SolidWorks / Onshape bağla</a>}
+        {onshape?.connected && msg.files.step && <OnshapeSend messageId={msg.id} link={onshape} />}
       </div>
       {showParams && (
         <div className="c-params">
@@ -180,6 +182,7 @@ export function TaskView({ taskId, me, devices, initialPrompt, onConsumedPrompt,
   const [live, setLive] = useState<{ prompt: string; steps: { text: string; detail?: string[] }[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [edit, setEdit] = useState<{ parent: string | null; text: string } | null>(null);
+  const { link: onshape } = useOnshapeLink();
   const abort = useRef<AbortController | null>(null);
   const end = useRef<HTMLDivElement>(null);
 
@@ -260,7 +263,7 @@ export function TaskView({ taskId, me, devices, initialPrompt, onConsumedPrompt,
               <div className="c-msg-body">
                 <Steps steps={m.steps ?? []} />
                 {m.status === 'running' ? <p className="c-dim">Bu yanıt yarıda kaldı.</p> : <p>{m.content}</p>}
-                {m.ir && Object.keys(m.files).length > 0 && <ModelCard msg={m} devices={devices} onUpdated={updated} />}
+                {m.ir && Object.keys(m.files).length > 0 && <ModelCard msg={m} devices={devices} onshape={onshape} onUpdated={updated} />}
               </div>
             </div>
           );
