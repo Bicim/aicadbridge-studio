@@ -161,26 +161,6 @@ export const CATALOG: Category[] = [
 
 export const ALL_ENTRIES: Entry[] = CATALOG.flatMap((c) => c.entries);
 
-/** Cihaz listesi ve görev ekranı için bağlayıcı adları. */
-export const HOST_LABEL: Record<HostId, string> = {
-  fusion: 'Autodesk Fusion', blender: 'Blender', solidworks: 'SolidWorks', inventor: 'Autodesk Inventor',
-  solidedge: 'Solid Edge', catia: 'CATIA V5', autocad: 'AutoCAD', rhino: 'Rhino 8', other: 'STEP klasörü',
-};
-
-/** Katalog girdisinden iki harfli simge (adın ilk iki harf/rakamı; çok sözcükte baş harfler). */
-export function monogram(name: string): string {
-  const words = name.replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/).filter(Boolean);
-  const s = words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? '?').slice(0, 2);
-  return s.toLocaleUpperCase('tr-TR');
-}
-
-/** Girdiye özgü sabit renk tonu. */
-export function monoHue(id: string): number {
-  let h = 0;
-  for (const ch of id) h = (h * 31 + ch.charCodeAt(0)) % 360;
-  return h;
-}
-
 export function matches(e: Entry, categoryTitle: string, q: string): boolean {
   const n = q.trim().toLocaleLowerCase('tr-TR');
   if (!n) return true;

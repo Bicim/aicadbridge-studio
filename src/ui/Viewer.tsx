@@ -9,6 +9,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import type { ExecutedPart } from '../core/types';
+import { onSchemeChange, readViewerTheme } from '../viewerTheme';
 
 interface Props {
   parts: ExecutedPart[];
@@ -34,7 +35,9 @@ export function Viewer({ parts, frameKey }: Props) {
     if (!mount) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#0d0d0c');
+    const theme = readViewerTheme(mount);
+    const background = new THREE.Color(theme.bg);
+    scene.background = background;
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100000);
     camera.position.set(140, 110, 140);
@@ -55,9 +58,14 @@ export function Viewer({ parts, frameKey }: Props) {
     fill.position.set(-220, 120, -180);
     scene.add(fill);
 
-    const grid = new THREE.GridHelper(400, 40, 0x2a2a28, 0x1a1a19);
-    grid.position.y = -0.01;
-    scene.add(grid);
+    let grid: THREE.GridHelper | null = null;
+    const buildGrid = (t = readViewerTheme(mount)) => {
+      if (grid) { scene.remove(grid); grid.geometry.dispose(); (grid.material as THREE.Material).dispose(); }
+      grid = new THREE.GridHelper(400, 40, t.grid, t.grid2);
+      grid.position.y = -0.01;
+      scene.add(grid);
+    };
+    buildGrid(theme);
 
     const modelGroup = new THREE.Group();
     scene.add(modelGroup);
@@ -81,9 +89,17 @@ export function Viewer({ parts, frameKey }: Props) {
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
     resize();
+    // Sistem teması değişince zemin ve ızgara renklerini token'lardan yeniden oku.
+    const offScheme = onSchemeChange(() => {
+      const t = readViewerTheme(mount);
+      background.set(t.bg);
+      buildGrid(t);
+      invalidate();
+    });
 
     return () => {
       cancelAnimationFrame(raf);
+      offScheme();
       observer.disconnect();
       controls.removeEventListener('change', invalidate);
       controls.dispose();

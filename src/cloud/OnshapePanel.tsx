@@ -1,5 +1,6 @@
 /* Onshape bağlayıcısı (bulut-bulut): anahtar girişi, bağlantı durumu ve görev ekranından gönderme. */
 import { useCallback, useEffect, useState } from 'react';
+import { ExternalLink } from 'lucide-react';
 import { api } from './api';
 
 export interface OnshapeLink {
@@ -11,7 +12,7 @@ export interface OnshapeLink {
 }
 interface OnshapeDoc { id: string; name: string; default_workspace_id: string | null; modified_at?: string }
 
-export const ONSHAPE_KEYS_URL = 'https://cad.onshape.com/user/developer/apiKeys';
+const ONSHAPE_KEYS_URL = 'https://cad.onshape.com/user/developer/apiKeys';
 
 /** Bağlantı durumunu yükler; sunucuya ulaşılamazsa "bağlı değil" sayar. */
 export function useOnshapeLink() {
@@ -45,14 +46,14 @@ export function OnshapeConnect({ link, onChanged }: { link: OnshapeLink | null; 
     setBusy(false);
   };
 
-  if (!link) return <p className="c-dim">Durum yükleniyor…</p>;
+  if (!link) return <p className="c-muted">Durum yükleniyor…</p>;
   if (link.connected) {
     return (
-      <div className="c-os">
-        <p className="c-status c-modal-conn"><i className="c-dot on" /> <b>Bağlı{link.name ? `: ${link.name}` : ''}</b></p>
-        <p className="c-fine">Görev ekranında model kartındaki "Onshape'a gönder" ile modeli belgene aktarabilirsin. Kredi harcanmaz.</p>
-        <button className="c-btn" disabled={busy} onClick={remove}>Bağlantıyı kaldır</button>
-        {err && <div className="c-error">{err}</div>}
+      <div className="c-stack">
+        <p className="c-status"><i className="c-dot on" /><b>Bağlı{link.name ? `: ${link.name}` : ''}</b></p>
+        <p className="c-fine">Görev ekranında model kartındaki Gönder → Onshape ile modeli belgene aktarabilirsin. Kredi harcanmaz.</p>
+        <div><button type="button" className="c-btn" disabled={busy} onClick={remove}>Bağlantıyı kaldır</button></div>
+        {err && <div className="c-error" role="alert">{err}</div>}
       </div>
     );
   }
@@ -60,28 +61,28 @@ export function OnshapeConnect({ link, onChanged }: { link: OnshapeLink | null; 
     return <div className="c-note">Onshape bağlantısı sunucuda henüz yapılandırılmamış. Yönetici ONSHAPE_ENC_KEY değerini tanımlamalı.</div>;
   }
   return (
-    <form className="c-os" onSubmit={save}>
-      <ol className="c-steps">
-        <li><a href={ONSHAPE_KEYS_URL} target="_blank" rel="noopener noreferrer">Onshape API anahtarları sayfasını aç ↗</a> (Hesabım → Geliştirici → API anahtarları)</li>
-        <li>"Yeni anahtar oluştur"a bas; okuma ve yazma izinlerini işaretle</li>
-        <li>Çıkan erişim anahtarını ve gizli anahtarı aşağıya yapıştır (gizli anahtar yalnız bir kez gösterilir)</li>
+    <form className="c-stack" onSubmit={save}>
+      <ol className="c-howto">
+        <li><a href={ONSHAPE_KEYS_URL} target="_blank" rel="noopener noreferrer" className="c-link">Onshape API anahtarları sayfasını aç<ExternalLink aria-hidden="true" /></a> (Hesabım → Geliştirici → API anahtarları)</li>
+        <li>"Yeni anahtar oluştur"a bas; okuma ve yazma izinlerini işaretle.</li>
+        <li>Erişim anahtarını ve gizli anahtarı aşağıya yapıştır (gizli anahtar yalnız bir kez gösterilir).</li>
       </ol>
-      <label className="c-os-field">Erişim anahtarı
-        <input value={access} onChange={(e) => setAccess(e.target.value)} autoComplete="off" spellCheck={false} required />
+      <label className="c-field">Erişim anahtarı
+        <input value={access} name="onshape-access" onChange={(e) => setAccess(e.target.value)} autoComplete="off" spellCheck={false} required />
       </label>
-      <label className="c-os-field">Gizli anahtar
-        <input type="password" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="new-password" spellCheck={false} required />
+      <label className="c-field">Gizli anahtar
+        <input type="password" name="onshape-secret" value={secret} onChange={(e) => setSecret(e.target.value)} autoComplete="new-password" spellCheck={false} required />
       </label>
       <p className="c-fine">Gizli anahtar sunucuda şifreli saklanır ve bir daha gösterilmez.</p>
-      <button className="c-btn primary" disabled={busy || !access.trim() || !secret.trim()}>{busy ? 'Doğrulanıyor…' : 'Bağla'}</button>
-      {err && <div className="c-error">{err}</div>}
+      <div><button className="c-btn primary" disabled={busy || !access.trim() || !secret.trim()}>{busy ? 'Doğrulanıyor…' : 'Bağla'}</button></div>
+      {err && <div className="c-error" role="alert">{err}</div>}
     </form>
   );
 }
 
 const NEW_DOC = '__new__';
 
-/** Model kartındaki "Onshape'a gönder": var olan belge ya da yeni belge. */
+/** Model kartındaki Onshape satırı: var olan belge ya da yeni belge. */
 export function OnshapeSend({ messageId, link }: { messageId: string; link: OnshapeLink }) {
   const last = link.default_document;
   const [docs, setDocs] = useState<OnshapeDoc[] | null>(null);
@@ -90,11 +91,12 @@ export function OnshapeSend({ messageId, link }: { messageId: string; link: Onsh
   const [note, setNote] = useState<string | null>(null);
   const [url, setUrl] = useState<string | null>(null);
 
-  const loadDocs = async () => {
-    if (docs) return;
-    try { setDocs(await api<OnshapeDoc[]>('/v1/onshape/documents')); }
-    catch (e) { setNote((e as Error).message); }
-  };
+  // Satır açılınca belge listesini bir kez getir.
+  useEffect(() => {
+    let live = true;
+    api<OnshapeDoc[]>('/v1/onshape/documents').then((d) => { if (live) setDocs(d); }).catch((e) => { if (live) setNote((e as Error).message); });
+    return () => { live = false; };
+  }, []);
 
   const send = async () => {
     setBusy(true); setNote("Onshape'a gönderiliyor…"); setUrl(null);
@@ -112,16 +114,16 @@ export function OnshapeSend({ messageId, link }: { messageId: string; link: Onsh
   };
 
   return (
-    <span className="c-os-send">
-      <span className="c-send-to">
-        <select value={pick} onChange={(e) => setPick(e.target.value)} onFocus={loadDocs} onMouseDown={loadDocs} aria-label="Onshape belgesi">
+    <div className="c-os-send">
+      <div className="c-os-send-row">
+        <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Onshape belgesi">
           <option value={NEW_DOC}>Yeni belge</option>
           {last && !docs?.some((d) => d.id === last.id) && <option value={`${last.id}|${last.workspace_id}`}>Son kullanılan belge</option>}
           {(docs ?? []).map((d) => <option key={d.id} value={`${d.id}|${d.default_workspace_id ?? ''}`}>{d.name}</option>)}
         </select>
-        <button className="c-btn" disabled={busy} onClick={send}>Onshape'a gönder</button>
-      </span>
-      {note && <span className="c-fine c-os-note" role="status">{note}{url && <> <a href={url} target="_blank" rel="noopener noreferrer">Onshape'ta aç ↗</a></>}</span>}
-    </span>
+        <button type="button" className="c-btn sm primary" disabled={busy} onClick={send}>Onshape'a gönder</button>
+      </div>
+      {note && <span className="c-os-note" role="status">{note}{url && <> <a href={url} target="_blank" rel="noopener noreferrer">Onshape'ta aç</a></>}</span>}
+    </div>
   );
 }

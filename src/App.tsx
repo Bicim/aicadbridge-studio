@@ -5,6 +5,8 @@
    ============================================================ */
 
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronRight, LucideProvider, Settings } from 'lucide-react';
+import { BrandMark } from './BrandMark';
 import { runPipeline } from './ai/pipeline';
 import { executeIR } from './core/executor';
 import { buildSliders, clampValue, defaultValues, type SliderSpec } from './core/parameters';
@@ -20,6 +22,7 @@ import { DfamPanel } from './ui/DfamPanel';
 import { InspectionSheet } from './ui/InspectionSheet';
 import type { InspectionView } from './core/snapshot';
 import type { VisionReport } from './ai/vision';
+import './local.css';
 
 interface ChatEntry {
   id: number;
@@ -35,6 +38,7 @@ const EXAMPLES = [
 ];
 
 let nextId = 1;
+const CLOUD = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 export function App() {
   const { settings, update } = useSettings();
@@ -177,17 +181,16 @@ export function App() {
   const statsLine = useMemo(() => verification?.summary ?? null, [verification]);
 
   return (
+    <LucideProvider size={14} strokeWidth={1.5}>
     <div className="app">
       <header className="topbar">
         <div className="brand">
-          <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true">
-            <rect width="32" height="32" rx="7" fill="#141412" />
-            <circle cx="16" cy="16" r="9" fill="none" stroke="#00b8d4" strokeWidth="2.6" />
-            <circle cx="16" cy="16" r="3" fill="#00b8d4" />
-          </svg>
+          <BrandMark size={22} />
           <span className="brand__name">AICADBridge <b>Web Studio</b></span>
+          <span className="brand__mode">Yerel mod</span>
         </div>
         <div className="topbar__right">
+          {CLOUD ? <a className="btn btn--ghost btn--sm" href="#/">Hesabıma dön</a> : null}
           {hasModel ? (
             <>
               <button className="btn btn--ghost btn--sm" onClick={() => exportSTL(parts, ir.name || 'model')}>STL</button>
@@ -201,7 +204,7 @@ export function App() {
             className={'btn btn--sm ' + (ready ? 'btn--ghost' : 'btn--primary')}
             onClick={() => setSettingsOpen(true)}
           >
-            {ready ? `⚙ ${settings.model}` : '⚙ Ayarlar'}
+            <Settings aria-hidden="true" />{ready ? settings.model : 'Ayarlar'}
           </button>
         </div>
       </header>
@@ -238,7 +241,7 @@ export function App() {
           {plan ? (
             <div className="meta-panel">
               <button className="meta-panel__toggle" onClick={() => setShowPlan((v) => !v)}>
-                {showPlan ? '▾' : '▸'} Plan · {plan.steps.length} adım
+                {showPlan ? <ChevronDown /> : <ChevronRight />} Plan · {plan.steps.length} adım
               </button>
               {showPlan ? (
                 <ol className="plan-steps">
@@ -248,7 +251,7 @@ export function App() {
                 </ol>
               ) : null}
               <button className="meta-panel__toggle" onClick={() => setShowCode((v) => !v)}>
-                {showCode ? '▾' : '▸'} ModelIR (kod)
+                {showCode ? <ChevronDown /> : <ChevronRight />} ModelIR (kod)
               </button>
               {showCode && ir ? (
                 <pre className="code-block">{JSON.stringify(ir, null, 2)}</pre>
@@ -314,5 +317,6 @@ export function App() {
         <SettingsDialog settings={settings} onClose={() => setSettingsOpen(false)} onSave={update} />
       ) : null}
     </div>
+    </LucideProvider>
   );
 }

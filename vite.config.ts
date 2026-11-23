@@ -7,6 +7,7 @@ function vendorChunk(id: string): string | undefined {
   if (!id.includes('node_modules')) return undefined;
   if (/node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react';
   if (/node_modules[\\/](@supabase|tslib)[\\/]/.test(id)) return 'auth';
+  if (/node_modules[\\/]lucide-react[\\/]/.test(id)) return 'icons';
   // three çekirdeği + OrbitControls: bulut görüntüleyici ve yerel mod ortak kullanır.
   if (/node_modules[\\/]three[\\/](build[\\/]|examples[\\/]jsm[\\/]controls[\\/]OrbitControls)/.test(id)) return 'three';
   return undefined;

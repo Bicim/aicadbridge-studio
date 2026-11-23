@@ -9,6 +9,7 @@
    ============================================================ */
 
 import { useState } from 'react';
+import { ChevronDown, ChevronRight, CircleCheck, CircleHelp, CircleX, RefreshCw, type LucideIcon } from 'lucide-react';
 import { PROCESS_LIMITS, type DfamReport, type ProcessId } from '../core/dfam';
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
   onSend: () => void;
 }
 
-const STATUS_ICON: Record<string, string> = { pass: '✅', fail: '❌', info: '❓' };
+const STATUS_ICON: Record<string, LucideIcon> = { pass: CircleCheck, fail: CircleX, info: CircleHelp };
 
 export function DfamPanel({ report, busy, hasModel, onRun, onSend }: Props) {
   const [open, setOpen] = useState(false);
@@ -30,7 +31,7 @@ export function DfamPanel({ report, busy, hasModel, onRun, onSend }: Props) {
     <div className="dfam">
       <div className="dfam__head">
         <button className="dfam__toggle" onClick={() => setOpen((v) => !v)} disabled={!hasModel}>
-          {open ? '▾' : '▸'} Üretilebilirlik (DfAM)
+          {open ? <ChevronDown /> : <ChevronRight />} Üretilebilirlik (DfAM)
           {report ? <span className={`dfam__badge dfam__badge--${report.fail_count > 0 ? 'bad' : 'ok'}`}>
             {report.fail_count > 0 ? `${report.fail_count} hata` : 'temiz'}
           </span> : null}
@@ -64,16 +65,19 @@ export function DfamPanel({ report, busy, hasModel, onRun, onSend }: Props) {
               Kısmi rapor ({report.partial_sections.join(', ')}): ölçülmemiş gerçek sıfır anlamına gelmez.
             </div>
           ) : null}
-          {report.findings.map((f) => (
+          {report.findings.map((f) => {
+            const Icon = STATUS_ICON[f.status] ?? CircleHelp;
+            return (
             <div key={f.id} className={`finding finding--${f.status}`}>
               <div className="finding__head">
-                <span className="finding__icon" aria-hidden="true">{STATUS_ICON[f.status]}</span>
+                <Icon className="finding__icon" aria-hidden="true" />
                 <span className="finding__title">{f.title}</span>
               </div>
               <div className="finding__detail">{f.detail}</div>
-              {f.redesign ? <div className="finding__redesign">↻ {f.redesign}</div> : null}
+              {f.redesign ? <div className="finding__redesign"><RefreshCw aria-hidden="true" /> {f.redesign}</div> : null}
             </div>
-          ))}
+            );
+          })}
         </div>
       ) : null}
 

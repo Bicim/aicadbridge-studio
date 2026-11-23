@@ -6,6 +6,7 @@
    ============================================================ */
 
 import { useState } from 'react';
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { InspectionView } from '../core/snapshot';
 import type { VisionReport } from '../ai/vision';
 
@@ -17,11 +18,11 @@ interface Props {
 export function InspectionSheet({ views, report }: Props) {
   const [open, setOpen] = useState(true);
   if (views.length === 0) return null;
-  const badge = report ? (report.ok ? '✅ uygun' : `⚠ ${report.issues.length} sorun`) : '❓ denetim yok';
+  const badge = report ? (report.ok ? 'uygun' : `${report.issues.length} sorun`) : 'denetim yok';
   return (
     <div className="inspection">
       <button className="meta-panel__toggle" onClick={() => setOpen((v) => !v)}>
-        {open ? '▾' : '▸'} Denetim sayfası · 6 görünüm · {badge}
+        {open ? <ChevronDown /> : <ChevronRight />} Denetim sayfası · 6 görünüm · {badge}
       </button>
       {open ? (
         <>
