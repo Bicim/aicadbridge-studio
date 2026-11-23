@@ -5,6 +5,17 @@ const SB_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 export const API_URL = ((import.meta.env.VITE_API_URL as string | undefined) ?? 'http://127.0.0.1:8000').replace(/\/$/, '');
 
+/** Sign-in methods enabled on the auth server (GoTrue /settings); null when unreachable. */
+export async function authProviders(): Promise<{ google: boolean; email: boolean } | null> {
+  if (!SB_URL || !SB_KEY) return null;
+  try {
+    const r = await fetch(`${SB_URL.replace(/\/$/, '')}/auth/v1/settings`, { headers: { apikey: SB_KEY } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return { google: !!j.external?.google, email: !!j.external?.email };
+  } catch { return null; }
+}
+
 export const supabase: SupabaseClient | null = SB_URL && SB_KEY ? createClient(SB_URL, SB_KEY) : null;
 export const cloudConfigured = !!supabase;
 
