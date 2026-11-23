@@ -184,3 +184,15 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--a
 img.c-avatar-s { object-fit: cover; padding: 0; }
 .c-profile { display: flex; gap: 14px; align-items: center; }
 .c-profile img, .c-profile .c-avatar-s { width: 48px; height: 48px; border-radius: 12px; }
+
+/* eşleştirme onayı, cihaz durumu, kurulum */
+.c-confirm { border-color: var(--accent); }
+.c-confirm-app { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.c-note.ok { background: rgba(80, 200, 120, .15); }
+.c-status { display: inline-flex; align-items: center; gap: 6px; }
+.c-dot { width: 8px; height: 8px; border-radius: 50%; background: #6b6b68; display: inline-block; }
+.c-dot.on { background: #4cc97a; box-shadow: 0 0 6px #4cc97a88; }
+.c-btn.c-big { height: 44px; padding: 0 20px; font-size: 14px; }
+.c-steps { margin: 12px 0; padding-left: 20px; font-size: 13px; line-height: 1.7; }
+.c-manual { margin-top: 8px; font-size: 13px; }
+.c-manual summary { cursor: pointer; }

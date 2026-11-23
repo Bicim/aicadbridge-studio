@@ -24,6 +24,19 @@ function useHashRoute() {
 }
 const go = (p: string) => { window.location.hash = p; };
 
+/* Eşleştirme kodu: OAuth / e-posta bağlantısı hash'i düşürür, bu yüzden girişten önce sessionStorage'da saklanır. */
+const PENDING_CODE_KEY = 'aicad.pendingCode';
+const stashPendingCode = () => {
+  try {
+    const m = window.location.hash.match(/^#\/connect\?(.*)$/);
+    const c = m ? new URLSearchParams(m[1]).get('code') : null;
+    if (c) sessionStorage.setItem(PENDING_CODE_KEY, c);
+  } catch { /* depolama kapalı olabilir */ }
+};
+const takePendingCode = (): string | null => {
+  try { const c = sessionStorage.getItem(PENDING_CODE_KEY); if (c) sessionStorage.removeItem(PENDING_CODE_KEY); return c; } catch { return null; }
+};
+
 /* ------------------------------------------------------------------ giriş */
 function Login() {
   const [mode, setMode] = useState<'in' | 'up'>('in');
@@ -33,7 +46,7 @@ function Login() {
   const [busy, setBusy] = useState(false);
   const redirect = window.location.origin + window.location.pathname;
   const [providers, setProviders] = useState<{ google: boolean; email: boolean } | null>(null);
-  useEffect(() => { authProviders().then(setProviders); }, []);
+  useEffect(() => { authProviders().then(setProviders); stashPendingCode(); }, []);
   const googleOff = providers !== null && !providers.google;
 
   const submit = async (e: React.FormEvent) => {
@@ -202,9 +215,67 @@ const PLUGINS = [
   { host: 'solidworks', name: 'SolidWorks 2021+', file: 'AICADBridgeLink-solidworks.zip', how: 'Zip\'i aç ve run.bat\'ı çalıştır (Python 3 gerekir; pywin32\'yi kendisi kurar). Ekranda çıkan kodu burada onayla. SolidWorks yoksa STEP dosyalarını ~/AICADBridge/inbox klasörüne kaydeder.' },
 ];
 
+const SETUP_URL = 'https://github.com/Bicim/aicadbridge-connectors/releases/latest/download/AICADBridgeSetup.exe';
+const ONLINE_MS = 90_000;
+const isOnline = (d: Device) => d.online ?? (d.last_seen ? Date.now() - new Date(d.last_seen).getTime() < ONLINE_MS : false);
+
+type ConnectInfo = { host: string; name: string; expires_at: string };
+
+function ConnectConfirm({ code, onDone }: { code: string; onDone: () => void }) {
+  const [info, setInfo] = useState<ConnectInfo | null>(null);
+  const [state, setState] = useState<'loading' | 'ready' | 'busy' | 'done' | 'cancelled'>('loading');
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    api<ConnectInfo>(`/v1/connect/info?code=${encodeURIComponent(code)}`)
+      .then((i) => { if (live) { setInfo(i); setState('ready'); } })
+      .catch((e: ApiError) => {
+        if (!live) return;
+        setErr(e.status === 404 ? "Kod bulunamadı veya süresi doldu, kurulum programından tekrar Bağla'ya bas."
+          : e.status === 409 ? 'Bu kod zaten kullanıldı.' : e.message);
+        setState('ready');
+      });
+    return () => { live = false; };
+  }, [code]);
+  const approve = async () => {
+    setState('busy'); setErr(null);
+    try { await api('/v1/connect/approve', { method: 'POST', json: { user_code: code } }); setState('done'); onDone(); }
+    catch (e) { setErr((e as Error).message); setState('ready'); }
+  };
+  const plugin = PLUGINS.find((p) => p.host === info?.host);
+  const open = state === 'ready' || state === 'busy';
+  return (
+    <section className="c-box c-confirm">
+      {state === 'loading' && <p className="c-dim">Kod doğrulanıyor…</p>}
+      {state === 'done' && <div className="c-note ok">Bağlandı ✓ — programına dönebilirsin.</div>}
+      {state === 'cancelled' && <p className="c-dim">Bağlantı iptal edildi. Hiçbir şey bağlanmadı.</p>}
+      {open && info && !err && (
+        <>
+          <div className="c-confirm-app">
+            <span className={`c-host ${info.host}`}>{plugin?.name ?? info.host}</span>
+            <b>{info.name}</b>
+          </div>
+          <h3>Bu bilgisayar hesabına bağlansın mı?</h3>
+          <p className="c-fine">Kod <span className="c-mono">{code}</span>. Yalnızca kendi kurduğun programı bağla.</p>
+          <div className="c-inline">
+            <button className="c-btn primary" disabled={state === 'busy'} onClick={approve}>Bağla</button>
+            <button className="c-btn" disabled={state === 'busy'} onClick={() => setState('cancelled')}>İptal</button>
+          </div>
+        </>
+      )}
+      {open && err && <div className="c-note">{err}</div>}
+    </section>
+  );
+}
+
 function Integrations({ devices, me, query, onChanged }: { devices: Device[]; me: Me | null; query: URLSearchParams; onChanged: () => void }) {
-  const [code, setCode] = useState(query.get('code') ?? '');
+  const urlCode = query.get('code') ?? '';
+  const [code, setCode] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
+  useEffect(() => {
+    const t = window.setInterval(onChanged, 20_000);
+    return () => window.clearInterval(t);
+  }, [onChanged]);
   const approve = async (e: React.FormEvent) => {
     e.preventDefault(); setMsg(null);
     try {
@@ -216,38 +287,56 @@ function Integrations({ devices, me, query, onChanged }: { devices: Device[]; me
     <div className="c-page">
       <h1>Entegrasyonlar</h1>
       <p className="c-dim">Eklenti, bu hesaba yalnızca dışarı doğru HTTPS ile bağlanır. Bilgisayarında port açılmaz. Gönderdiğin model programda yeni bir bileşen olarak açılır.</p>
-      <section className="c-box">
-        <h3>Eşleştirme kodu</h3>
-        <form className="c-inline" onSubmit={approve}>
-          <input className="c-mono code" placeholder="ABCD-1234" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={9} />
-          <button className="c-btn primary" disabled={code.replace('-', '').length < 8}>Bağla</button>
-        </form>
-        {msg && <div className="c-note">{msg}</div>}
-        {me?.plan === 'free' && <p className="c-fine">Ücretsiz planda 1 eklenti bağlanabilir.</p>}
-      </section>
+      {urlCode && <ConnectConfirm key={urlCode} code={urlCode} onDone={onChanged} />}
+      {!urlCode && (
+        <section className="c-box">
+          <h3>Eşleştirme kodu</h3>
+          <form className="c-inline" onSubmit={approve}>
+            <input className="c-mono code" placeholder="ABCD-1234" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={9} />
+            <button className="c-btn primary" disabled={code.replace('-', '').length < 8}>Bağla</button>
+          </form>
+          {msg && <div className="c-note">{msg}</div>}
+          {me?.plan === 'free' && <p className="c-fine">Ücretsiz planda 1 eklenti bağlanabilir.</p>}
+        </section>
+      )}
       <section className="c-box">
         <h3>Bağlı programlar</h3>
         <ul className="c-list">
-          {devices.map((d) => (
-            <li key={d.id}>
-              <span className={`c-host ${d.host}`}>{PLUGINS.find((p) => p.host === d.host)?.name ?? d.host}</span>
-              <span>{d.name}</span>
-              <span className="c-dim c-mono">{d.last_seen ? `son görülme ${new Date(d.last_seen).toLocaleString('tr-TR')}` : 'henüz bağlanmadı'}</span>
-              <button className="c-x" title="Bağlantıyı kaldır" onClick={async () => { await api(`/v1/devices/${d.id}`, { method: 'DELETE' }); onChanged(); }}>×</button>
-            </li>
-          ))}
+          {devices.map((d) => {
+            const on = isOnline(d);
+            return (
+              <li key={d.id}>
+                <span className={`c-host ${d.host}`}>{PLUGINS.find((p) => p.host === d.host)?.name ?? d.host}</span>
+                <span>{d.name}</span>
+                <span className="c-dim c-mono c-status"><i className={`c-dot${on ? ' on' : ''}`} />{on ? 'Bağlı' : `Çevrimdışı · ${d.last_seen ? `son görülme ${new Date(d.last_seen).toLocaleString('tr-TR')}` : 'henüz bağlanmadı'}`}</span>
+                <button className="c-x" title="Bağlantıyı kaldır" onClick={async () => { await api(`/v1/devices/${d.id}`, { method: 'DELETE' }); onChanged(); }}>×</button>
+              </li>
+            );
+          })}
           {!devices.length && <li className="c-dim">Bağlı program yok.</li>}
         </ul>
       </section>
-      <div className="c-grid3">
-        {PLUGINS.map((p) => (
-          <section key={p.host} className="c-box">
-            <h3><span className={`c-host ${p.host}`}>{p.name}</span></h3>
-            <p className="c-dim">{p.how}</p>
-            <a className="c-btn" href={`${SITE_URL}/downloads/${p.file}`}>İndir</a>
-          </section>
-        ))}
-      </div>
+      <section className="c-box">
+        <h3>Kurulum</h3>
+        <a className="c-btn primary c-big" href={SETUP_URL}>Windows kurulum programını indir</a>
+        <ol className="c-steps">
+          <li>İndir ve çalıştır (SmartScreen: Daha fazla bilgi → Yine de çalıştır)</li>
+          <li>Programını seç, Kur'a bas</li>
+          <li>Bağla'ya bas, açılan sayfada onayla</li>
+        </ol>
+        <details className="c-manual">
+          <summary>Elle kurulum</summary>
+          <div className="c-grid3">
+            {PLUGINS.map((p) => (
+              <div key={p.host}>
+                <h4><span className={`c-host ${p.host}`}>{p.name}</span></h4>
+                <p className="c-dim">{p.how}</p>
+                <a className="c-btn" href={`${SITE_URL}/downloads/${p.file}`}>İndir</a>
+              </div>
+            ))}
+          </div>
+        </details>
+      </section>
       <McpSetup />
     </div>
   );
@@ -444,6 +533,8 @@ export function CloudApp() {
 
   useEffect(() => {
     if (!session) return;
+    const pendingCode = takePendingCode();
+    if (pendingCode && !window.location.hash.startsWith('#/connect')) go(`/connect?code=${encodeURIComponent(pendingCode)}`);
     refreshMe(); refreshTasks(); refreshDevices();
   }, [session?.user.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
