@@ -1,10 +1,10 @@
 /* Görev ekranı: dallanan mesaj ağacının etkin yolu, canlı adımlar, model kartı, parametreler, eklentiye gönderme. */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, generate, loadByok, type Device, type IRParam, type Me, type Msg } from './api';
+import { HOST_LABEL } from './integrations';
 import { ModelViewer } from './ModelViewer';
 
 const startedTasks = new Set<string>();
-const HOST_LABEL: Record<string, string> = { fusion: 'Fusion 360', blender: 'Blender', solidworks: 'SolidWorks', other: 'Diğer' };
 
 /** En son oluşturulan yaprağa giden yol (kök → yaprak). */
 function activePath(msgs: Msg[], leafId: string | null): Msg[] {
