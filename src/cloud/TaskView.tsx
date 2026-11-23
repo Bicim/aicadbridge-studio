@@ -1,9 +1,33 @@
 /* Görev ekranı: dallanan mesaj ağacının etkin yolu, canlı adımlar, model kartı, parametreler, eklentiye gönderme. */
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, generate, loadByok, type Device, type IRParam, type Me, type Msg } from './api';
+import { Composer } from './Composer';
 import { HOST_LABEL } from './integrations';
-import { ModelViewer } from './ModelViewer';
 import { OnshapeSend, useOnshapeLink, type OnshapeLink } from './OnshapePanel';
+
+/* three.js yalnız bir model kartı görünür olduğunda yüklenir. */
+const ModelViewer = lazy(() => import('./ModelViewer').then((m) => ({ default: m.ModelViewer })));
+const VIEWER_H = 320;
+
+/** Görüntüleyiciyi kart ekrana yaklaşınca kurar (uzun konuşmada gereksiz WebGL bağlamı ve GLB indirmesi yok). */
+function LazyViewer({ url }: { url: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [near, setNear] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || near) return;
+    if (typeof IntersectionObserver === 'undefined') { setNear(true); return; }
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) setNear(true); }, { rootMargin: '300px 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+  const skeleton = <div className="c-viewer c-viewer-skel" style={{ height: VIEWER_H }} aria-hidden="true" />;
+  return (
+    <div ref={ref}>
+      {near ? <Suspense fallback={skeleton}><ModelViewer url={url} height={VIEWER_H} /></Suspense> : skeleton}
+    </div>
+  );
+}
 
 const startedTasks = new Set<string>();
 
@@ -15,31 +39,6 @@ function activePath(msgs: Msg[], leafId: string | null): Msg[] {
   const out: Msg[] = [];
   while (cur) { out.push(cur); cur = cur.parent_id ? byId.get(cur.parent_id) : undefined; }
   return out.reverse();
-}
-
-export function Composer({ onSend, busy, onStop, me, placeholder, initial = '' }: {
-  onSend: (text: string) => void; busy: boolean; onStop?: () => void; me: Me | null; placeholder: string; initial?: string;
-}) {
-  const [text, setText] = useState(initial);
-  const ta = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => { setText(initial); if (initial) ta.current?.focus(); }, [initial]);
-  const byok = loadByok();
-  const model = byok.enabled && byok.api_key ? `${byok.model} (kendi anahtarın)`
-    : me?.llm.provider === 'mock' ? 'demo modeli (çevrimdışı)' : me?.llm.model ?? '';
-  const send = () => { const t = text.trim(); if (!t || busy) return; onSend(t); setText(''); };
-  return (
-    <div className="c-composer">
-      <textarea ref={ta} rows={2} value={text} placeholder={placeholder}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }} />
-      <div className="c-composer-bar">
-        <span className="c-mono c-dim">{model}</span>
-        {busy && onStop
-          ? <button className="c-send stop" onClick={onStop} aria-label="Durdur">■</button>
-          : <button className="c-send" onClick={send} disabled={!text.trim() || busy} aria-label="Gönder">↑</button>}
-      </div>
-    </div>
-  );
 }
 
 function fmt(n: number | undefined, d = 1) {
@@ -100,7 +99,7 @@ function ModelCard({ msg, devices, onshape, onUpdated }: { msg: Msg; devices: De
 
   return (
     <div className="c-card">
-      {msg.files.glb ? <ModelViewer key={msg.files.glb} url={msg.files.glb} /> : <div className="c-viewer c-viewer-err">Önizleme yok</div>}
+      {msg.files.glb ? <LazyViewer key={msg.files.glb} url={msg.files.glb} /> : <div className="c-viewer c-viewer-err">Önizleme yok</div>}
       <div className="c-card-meta">
         <div>
           <div className="c-card-title">{title}{rebuilding && <span className="c-spin" />}</div>

@@ -2,6 +2,7 @@
    Viewer.tsx - three.js sahnesi
    Parçalar değişince grup yeniden kurulur; kamera otomatik
    çerçeveler. OrbitControls: sürükle-döndür, tekerlek-zoom.
+   İsteğe bağlı çizim: kare yalnız bir şey değişince çizilir.
    ============================================================ */
 
 import { useEffect, useRef } from 'react';
@@ -24,6 +25,7 @@ export function Viewer({ parts, frameKey }: Props) {
     controls: OrbitControls;
     modelGroup: THREE.Group;
     parts: ExecutedPart[];
+    invalidate: () => void;
   } | null>(null);
 
   /* Sahneyi bir kez kur */
@@ -60,7 +62,13 @@ export function Viewer({ parts, frameKey }: Props) {
     const modelGroup = new THREE.Group();
     scene.add(modelGroup);
 
-    sceneRef.current = { scene, camera, renderer, controls, modelGroup, parts: [] };
+    let raf = 0;
+    const frame = () => { raf = 0; controls.update(); renderer.render(scene, camera); };
+    // controls.update() kamera değiştikçe 'change' yayar; sönümleme bitince döngü durur.
+    const invalidate = () => { if (!raf) raf = requestAnimationFrame(frame); };
+    controls.addEventListener('change', invalidate);
+
+    sceneRef.current = { scene, camera, renderer, controls, modelGroup, parts: [], invalidate };
 
     const resize = () => {
       const w = mount.clientWidth || 1;
@@ -68,22 +76,16 @@ export function Viewer({ parts, frameKey }: Props) {
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+      invalidate();
     };
     const observer = new ResizeObserver(resize);
     observer.observe(mount);
     resize();
 
-    let raf = 0;
-    const animate = () => {
-      controls.update();
-      renderer.render(scene, camera);
-      raf = requestAnimationFrame(animate);
-    };
-    animate();
-
     return () => {
       cancelAnimationFrame(raf);
       observer.disconnect();
+      controls.removeEventListener('change', invalidate);
       controls.dispose();
       renderer.dispose();
       mount.removeChild(renderer.domElement);
@@ -115,6 +117,7 @@ export function Viewer({ parts, frameKey }: Props) {
       ctx.modelGroup.add(mesh);
     }
     ctx.parts = parts;
+    ctx.invalidate();
   }, [parts]);
 
   /* Yeni model geldiğinde kamerayı çerçeveler */
@@ -136,6 +139,7 @@ export function Viewer({ parts, frameKey }: Props) {
     ctx.camera.far = radius * 100;
     ctx.camera.updateProjectionMatrix();
     ctx.controls.update();
+    ctx.invalidate();
   }, [frameKey]);
 
   return <div className="viewer" ref={mountRef} />;

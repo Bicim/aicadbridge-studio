@@ -1,5 +1,5 @@
 /* AICADBridge Cloud istemcisi: Supabase oturumu + API çağrıları + SSE üretim akışı. */
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { GoTrueClient } from '@supabase/auth-js';
 
 const SB_URL = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -16,8 +16,21 @@ export async function authProviders(): Promise<{ google: boolean; email: boolean
   } catch { return null; }
 }
 
-export const supabase: SupabaseClient | null = SB_URL && SB_KEY ? createClient(SB_URL, SB_KEY) : null;
-export const cloudConfigured = !!supabase;
+/* Yalnız oturum gerekiyor: tam supabase-js yerine yalnız Auth istemcisi (veritabanı/realtime/depolama paketleri yüklenmez).
+   Ayarlar supabase-js createClient() ile aynı: aynı depolama anahtarı, aynı başlıklar, implicit akış; mevcut oturumlar korunur. */
+function createAuth(url: string, key: string): GoTrueClient {
+  const base = new URL(url.endsWith('/') ? url : `${url}/`);
+  return new GoTrueClient({
+    url: new URL('auth/v1', base).href,
+    headers: { Authorization: `Bearer ${key}`, apikey: key },
+    storageKey: `sb-${base.hostname.split('.')[0]}-auth-token`,
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    flowType: 'implicit',
+  });
+}
+export const auth: GoTrueClient | null = SB_URL && SB_KEY ? createAuth(SB_URL, SB_KEY) : null;
 
 export interface Me {
   id: string; email: string; name?: string; avatar_url?: string | null; provider?: string | null; plan: 'free' | 'pro' | 'team';
@@ -52,7 +65,7 @@ export class ApiError extends Error {
 }
 
 async function token(): Promise<string> {
-  const { data } = await supabase!.auth.getSession();
+  const { data } = await auth!.getSession();
   const t = data.session?.access_token;
   if (!t) throw new ApiError(401, 'Oturum yok');
   return t;

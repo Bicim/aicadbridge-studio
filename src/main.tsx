@@ -1,20 +1,27 @@
-import { StrictMode, useEffect, useState } from 'react';
+import { StrictMode, Suspense, lazy, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { App } from './App';
-import { cloudConfigured } from './cloud/api';
-import { CloudApp } from './cloud/CloudApp';
 import './styles.css';
 
-/* #/local = hesapsız, tarayıcı içi (BYOK) eski stüdyo. Diğer her şey bulut uygulaması. */
+/* İki mod ayrı parçalar halinde, yalnız gerektiğinde yüklenir:
+   #/local = hesapsız, tarayıcı içi (BYOK) yerel stüdyo (three + CSG); diğer her şey bulut uygulaması. */
+const LocalApp = lazy(() => import('./App').then((m) => ({ default: m.App })));
+const CloudApp = lazy(() => import('./cloud/CloudApp').then((m) => ({ default: m.CloudApp })));
+
+const cloudConfigured = Boolean(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY);
+const isLocal = () => !cloudConfigured || window.location.hash.startsWith('#/local');
+
 function Root() {
-  const isLocal = () => window.location.hash.startsWith('#/local');
-  const [local, setLocal] = useState(isLocal() || !cloudConfigured);
+  const [local, setLocal] = useState(isLocal);
   useEffect(() => {
-    const on = () => setLocal(isLocal() || !cloudConfigured);
+    const on = () => setLocal(isLocal());
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);
-  return local ? <App /> : <CloudApp />;
+  return (
+    <Suspense fallback={<div className="boot" aria-busy="true"><span className="spinner" /></div>}>
+      {local ? <LocalApp /> : <CloudApp />}
+    </Suspense>
+  );
 }
 
 createRoot(document.getElementById('root')!).render(

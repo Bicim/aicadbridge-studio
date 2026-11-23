@@ -215,9 +215,15 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
   const [hasKeys, setHasKeys] = useState(false);
   const { link: onshape, refresh: refreshOnshape } = useOnshapeLink();
 
+  // Cihaz durumu yalnız bu sayfa açıkken ve sekme görünürken 20 sn'de bir yenilenir; sekmeye dönünce hemen yenilenir.
   useEffect(() => {
-    const t = window.setInterval(onChanged, 20_000);
-    return () => window.clearInterval(t);
+    let t: number | undefined;
+    const start = () => { if (t === undefined) t = window.setInterval(onChanged, 20_000); };
+    const stop = () => { window.clearInterval(t); t = undefined; };
+    const onVis = () => { if (document.hidden) stop(); else { onChanged(); start(); } };
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVis);
+    return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
   }, [onChanged]);
   useEffect(() => {
     api<Votes>('/v1/integrations/requests').then(setVotes).catch(() => setVotes(null));

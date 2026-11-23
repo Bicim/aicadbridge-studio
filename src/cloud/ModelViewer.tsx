@@ -1,4 +1,6 @@
-/* Bulut çekirdeğin ürettiği GLB önizlemesi: yörünge kamera, kenar çizgileri, otomatik çerçeveleme. */
+/* Bulut çekirdeğin ürettiği GLB önizlemesi: yörünge kamera, kenar çizgileri, otomatik çerçeveleme.
+   İsteğe bağlı çizim: kare yalnız kamera hareket ederken, model yüklenince ve boyut değişince çizilir;
+   boştayken GPU/CPU harcamaz. */
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -26,6 +28,12 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
+    let raf = 0;
+    const frame = () => { raf = 0; controls.update(); renderer.render(scene, camera); };
+    // controls.update() kamera değiştikçe 'change' yayar; sönümleme bitince döngü kendiliğinden durur.
+    const invalidate = () => { if (!raf) raf = requestAnimationFrame(frame); };
+    controls.addEventListener('change', invalidate);
+
     const resize = () => {
       const w = el.clientWidth || 1;
       renderer.setSize(w, height, false);
@@ -33,6 +41,7 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
       renderer.domElement.style.height = `${height}px`;
       camera.aspect = w / height;
       camera.updateProjectionMatrix();
+      invalidate();
     };
     resize();
     const ro = new ResizeObserver(resize);
@@ -64,15 +73,14 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
       camera.position.copy(center).add(new THREE.Vector3(1, 0.8, 1.2).normalize().multiplyScalar(r * 3.2));
       camera.near = r / 100; camera.far = r * 100;
       camera.updateProjectionMatrix();
+      invalidate();
     }, undefined, () => !disposed && setErr('Önizleme yüklenemedi'));
 
-    let raf = 0;
-    const tick = () => { controls.update(); renderer.render(scene, camera); raf = requestAnimationFrame(tick); };
-    tick();
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
       ro.disconnect();
+      controls.removeEventListener('change', invalidate);
       controls.dispose();
       scene.traverse((o) => {
         const m = o as THREE.Mesh;
