@@ -42,7 +42,7 @@ export interface Msg {
   content: string; ir: IRDoc | null; report: Report | null; steps: { text: string; detail?: string[] }[];
   files: Record<string, string>; params: Record<string, number> | null; status: 'running' | 'done' | 'error'; created_at: string;
 }
-export interface Device { id: string; host: 'fusion' | 'blender' | 'solidworks' | 'other'; name: string; last_seen: string | null; created_at: string }
+export interface Device { id: string; host: 'fusion' | 'blender' | 'solidworks' | 'other'; name: string; last_seen: string | null; created_at: string; online?: boolean }
 export interface FileRow { message_id: string; task_id: string; task_title: string; title: string; created_at: string; files: Record<string, string> }
 export interface Plan { id: string; name: string; price_usd: number; period: string; credits: number; credits_period: string; features: string[] }
 
