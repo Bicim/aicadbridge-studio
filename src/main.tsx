@@ -29,6 +29,7 @@ function Root() {
     window.addEventListener('hashchange', on);
     return () => window.removeEventListener('hashchange', on);
   }, []);
+  useEffect(() => { if (local) document.title = 'AICADBridge Studio · Yerel mod'; }, [local]);
   return (
     <Suspense fallback={<div className="boot" aria-busy="true"><span className="spinner" /></div>}>
       {local ? <LocalApp /> : <CloudApp />}

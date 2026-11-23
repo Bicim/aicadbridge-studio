@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { onSchemeChange, readViewerTheme } from '../viewerTheme';
 
 export function ModelViewer({ url, height = 320 }: { url: string; height?: number }) {
   const host = useRef<HTMLDivElement>(null);
@@ -16,7 +17,7 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
     setErr(null);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(0x14161a);
+    renderer.setClearColor(readViewerTheme(el).bg);
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -48,6 +49,10 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
     ro.observe(el);
 
     let disposed = false;
+    let grid: THREE.GridHelper | null = null;
+    let buildGrid = () => undefined as void;
+    // Sistem teması değişince zemin ve ızgara renkleri token'lardan yeniden okunur.
+    const offScheme = onSchemeChange(() => { renderer.setClearColor(readViewerTheme(el).bg); buildGrid(); invalidate(); });
     const material = new THREE.MeshStandardMaterial({ color: 0x2f7fb8, metalness: 0.25, roughness: 0.45 });
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x0b2236, transparent: true, opacity: 0.55 });
     new GLTFLoader().load(url, (gltf) => {
@@ -66,9 +71,14 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
       const size = box.getSize(new THREE.Vector3());
       const center = box.getCenter(new THREE.Vector3());
       const r = Math.max(size.length() / 2, 0.5);
-      const grid = new THREE.GridHelper(r * 6, 24, 0x2c3138, 0x22262c);
-      grid.position.set(center.x, box.min.y, center.z);
-      scene.add(grid);
+      buildGrid = () => {
+        const t = readViewerTheme(el);
+        if (grid) { scene.remove(grid); grid.geometry.dispose(); (grid.material as THREE.Material).dispose(); }
+        grid = new THREE.GridHelper(r * 6, 24, t.grid, t.grid2);
+        grid.position.set(center.x, box.min.y, center.z);
+        scene.add(grid);
+      };
+      buildGrid();
       controls.target.copy(center);
       camera.position.copy(center).add(new THREE.Vector3(1, 0.8, 1.2).normalize().multiplyScalar(r * 3.2));
       camera.near = r / 100; camera.far = r * 100;
@@ -78,6 +88,7 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
 
     return () => {
       disposed = true;
+      offScheme();
       cancelAnimationFrame(raf);
       ro.disconnect();
       controls.removeEventListener('change', invalidate);

@@ -270,6 +270,8 @@ export function App() {
             onSubmit={(e) => { e.preventDefault(); send(input); }}
           >
             <textarea
+              name="prompt"
+              aria-label="İstem"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {

@@ -33,7 +33,7 @@ export function TaskList({ tasks, projects, onChanged }: { tasks: Task[]; projec
                   </span>
                   {t.mine === false && <span className="c-pill">Ortak</span>}
                   {t.mine !== false && <>
-                    <select value={t.project_id ?? ''} aria-label={`${t.title}: proje`}
+                    <select name={`project-${t.id}`} value={t.project_id ?? ''} aria-label={`${t.title}: proje`}
                       onChange={async (e) => { await api(`/v1/tasks/${t.id}`, { method: 'PATCH', json: { project_id: e.target.value || null } }); onChanged(); }}>
                       <option value="">Projesiz</option>
                       {projects.map((p) => <option key={p.id} value={p.id}>{p.name}{p.team_id ? ' (ortak)' : ''}</option>)}
@@ -64,7 +64,7 @@ export function Projects({ projects, tasks, me, onChanged }: { projects: Project
         try { await api('/v1/projects', { method: 'POST', json: { name, shared } }); setName(''); onChanged(); } catch (x) { setErr((x as Error).message); }
       }}>
         <input name="project-name" aria-label="Yeni proje adı" placeholder="Yeni proje adı" value={name} onChange={(e) => setName(e.target.value)} />
-        {me?.team && <label className="c-check"><input type="checkbox" checked={shared} onChange={(e) => setShared(e.target.checked)} />{me.team.name} ile paylaş</label>}
+        {me?.team && <label className="c-check"><input type="checkbox" name="project-shared" checked={shared} onChange={(e) => setShared(e.target.checked)} />{me.team.name} ile paylaş</label>}
         <button className="c-btn primary" disabled={!name.trim()}>Oluştur</button>
       </form>
       {err && <div className="c-error" role="alert">{err}</div>}
@@ -284,10 +284,10 @@ export function Settings({ me }: { me: Me | null }) {
       <section className="c-card" aria-labelledby="set-model-h">
         <h2 id="set-model-h">Model</h2>
         <p>Varsayılan: <span className="c-mono">{me?.llm.model ?? '…'}</span> (sunucuda çalışır, kredi harcar).</p>
-        <label className="c-check"><input type="checkbox" checked={s.enabled} onChange={(e) => set({ enabled: e.target.checked })} />Kendi API anahtarımı kullan (Pro/Takım, kredi harcamaz)</label>
+        <label className="c-check"><input type="checkbox" name="byok-enabled" checked={s.enabled} onChange={(e) => set({ enabled: e.target.checked })} />Kendi API anahtarımı kullan (Pro/Takım, kredi harcamaz)</label>
         <div className="c-form-grid">
           <label className="c-field">Sağlayıcı
-            <select value={s.provider} onChange={(e) => set({ provider: e.target.value })}>
+            <select name="byok-provider" value={s.provider} onChange={(e) => set({ provider: e.target.value })}>
               <option value="anthropic">Anthropic</option><option value="openai">OpenAI</option><option value="google">Google Gemini</option>
               <option value="openrouter">OpenRouter</option><option value="custom">OpenAI uyumlu (özel URL)</option>
             </select>

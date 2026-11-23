@@ -116,7 +116,7 @@ export function OnshapeSend({ messageId, link }: { messageId: string; link: Onsh
   return (
     <div className="c-os-send">
       <div className="c-os-send-row">
-        <select value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Onshape belgesi">
+        <select name="onshape-document" value={pick} onChange={(e) => setPick(e.target.value)} aria-label="Onshape belgesi">
           <option value={NEW_DOC}>Yeni belge</option>
           {last && !docs?.some((d) => d.id === last.id) && <option value={`${last.id}|${last.workspace_id}`}>Son kullanılan belge</option>}
           {(docs ?? []).map((d) => <option key={d.id} value={`${d.id}|${d.default_workspace_id ?? ''}`}>{d.name}</option>)}
