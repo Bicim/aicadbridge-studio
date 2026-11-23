@@ -1,7 +1,7 @@
 /* AICADBridge Cloud web uygulaması: oturum, kenar çubuğu, hash yönlendirme ve sayfalar. */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Session } from '@supabase/supabase-js';
-import { api, ApiError, loadByok, saveByok, supabase, type AuditRow, type ByokSettings, type Device, type FileRow, type Me, type Plan, type Project, type Task, type Team } from './api';
+import { api, ApiError, authProviders, loadByok, saveByok, supabase, type AuditRow, type ByokSettings, type Device, type FileRow, type Me, type Plan, type Project, type Task, type Team } from './api';
 import { McpSetup } from './McpSetup';
 import { Composer, TaskView } from './TaskView';
 import './cloud.css';
@@ -32,6 +32,9 @@ function Login() {
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const redirect = window.location.origin + window.location.pathname;
+  const [providers, setProviders] = useState<{ google: boolean; email: boolean } | null>(null);
+  useEffect(() => { authProviders().then(setProviders); }, []);
+  const googleOff = providers !== null && !providers.google;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true); setMsg(null);
@@ -70,11 +73,12 @@ function Login() {
       <section className="c-login-form">
         <h2>{mode === 'in' ? 'Tekrar hoş geldin' : 'Hesap oluştur'}</h2>
         <p className="c-dim">{mode === 'in' ? 'Hesabına giriş yap.' : 'Ücretsiz planla başla, kart gerekmez.'}</p>
-        <button className="c-btn wide outline" onClick={google}>Google ile devam et</button>
+        <button className="c-btn wide outline" onClick={google} disabled={googleOff}>Google ile devam et</button>
+        {googleOff && <p className="c-fine">Google girişi bu sunucuda henüz yapılandırılıyor.</p>}
         <div className="c-or"><span>veya</span></div>
         <form onSubmit={submit}>
-          <input type="email" required placeholder="E-posta" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
-          <input type="password" required minLength={6} placeholder="Şifre" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete={mode === 'in' ? 'current-password' : 'new-password'} />
+          <input type="email" name="email" id="login-email" required placeholder="E-posta" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" />
+          <input type="password" name="password" id="login-password" required minLength={6} placeholder="Şifre" value={pw} onChange={(e) => setPw(e.target.value)} autoComplete={mode === 'in' ? 'current-password' : 'new-password'} />
           <button className="c-btn wide primary" disabled={busy}>{mode === 'in' ? 'Giriş yap' : 'Kaydol'}</button>
         </form>
         {mode === 'in' && <button className="c-link" onClick={magic}>Şifresiz giriş bağlantısı gönder</button>}
