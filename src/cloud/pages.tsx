@@ -332,9 +332,13 @@ export function Settings({ me }: { me: Me | null }) {
         <label className="c-check"><input type="checkbox" name="byok-enabled" checked={s.enabled} onChange={(e) => set({ enabled: e.target.checked })} />Kendi API anahtarımı kullan (Pro/Takım, kredi harcamaz)</label>
         <div className="c-form-grid">
           <label className="c-field">Sağlayıcı
-            <select name="byok-provider" value={s.provider} onChange={(e) => set({ provider: e.target.value })}>
+            <select name="byok-provider" value={s.provider} onChange={(e) => {
+              const p = e.target.value;
+              const nextModel = p === 'evren' && (!s.model || s.model.startsWith('claude-')) ? 'deepseek-v4.1-flash' : s.model;
+              set({ provider: p, model: nextModel });
+            }}>
               <option value="anthropic">Anthropic</option><option value="openai">OpenAI</option><option value="google">Google Gemini</option>
-              <option value="openrouter">OpenRouter</option><option value="custom">OpenAI uyumlu (özel URL)</option>
+              <option value="openrouter">OpenRouter</option><option value="evren">EVREN (SSYZ)</option><option value="custom">OpenAI uyumlu (özel URL)</option>
             </select>
           </label>
           <label className="c-field">Model<input className="c-mono" name="byok-model" value={s.model} onChange={(e) => set({ model: e.target.value })} /></label>

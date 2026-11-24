@@ -32,10 +32,14 @@ function createAuth(url: string, key: string): GoTrueClient {
 }
 export const auth: GoTrueClient | null = SB_URL && SB_KEY ? createAuth(SB_URL, SB_KEY) : null;
 
+export interface ServerModel {
+  id: string; label: string; hint?: string; vision?: boolean;
+}
 export interface Me {
   id: string; email: string; name?: string; avatar_url?: string | null; provider?: string | null; plan: 'free' | 'pro' | 'team';
   credits: number; credits_period: 'day' | 'month'; credits_reset_at: string;
-  billing_enabled: boolean; llm: { provider: string; model: string };
+  billing_enabled: boolean;
+  llm: { provider: string; model: string; models?: ServerModel[]; features?: { vision?: boolean; asr?: boolean; ocr?: boolean } };
   team: { id: string; name: string; role: 'owner' | 'member' } | null;
 }
 export interface Task { id: string; title: string; project_id: string | null; created_at: string; updated_at: string; mine?: boolean }
@@ -98,7 +102,7 @@ export type GenEvent =
 
 export interface LLMOverride { provider: string; model: string; api_key: string; base_url?: string }
 
-export async function generate(taskId: string, body: { prompt: string; parent_id?: string | null; llm?: LLMOverride },
+export async function generate(taskId: string, body: { prompt: string; parent_id?: string | null; model?: string; images?: string[]; llm?: LLMOverride },
   onEvent: (e: GenEvent) => void, signal?: AbortSignal): Promise<void> {
   const r = await fetch(`${API_URL}/v1/tasks/${taskId}/generate`, {
     method: 'POST', signal,
@@ -138,4 +142,20 @@ export function loadByok(): ByokSettings {
 }
 export function saveByok(s: ByokSettings) {
   try { localStorage.setItem(BYOK_KEY, JSON.stringify(s)); } catch { /* yok say */ }
+}
+
+const MODEL_KEY = 'aicad.model';
+export function loadSelectedModel(): string {
+  try { return localStorage.getItem(MODEL_KEY) ?? ''; } catch { return ''; }
+}
+export function saveSelectedModel(model: string) {
+  try { localStorage.setItem(MODEL_KEY, model); } catch { /* yok say */ }
+}
+
+export function transcribeAudio(audio_base64: string, mime_type: string, language = 'tr'): Promise<{ text: string }> {
+  return api<{ text: string }>('/v1/transcribe', { method: 'POST', json: { audio_base64, mime_type, language } });
+}
+
+export function ocrDrawing(image_data_url: string): Promise<{ text: string }> {
+  return api<{ text: string }>('/v1/ocr', { method: 'POST', json: { image_data_url } });
 }

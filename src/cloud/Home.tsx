@@ -2,12 +2,12 @@
 import { useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import type { Me } from './api';
-import { Composer } from './Composer';
+import { Composer, type SendOptions } from './Composer';
 import { displayName } from './ui';
 
 const EXAMPLES = ['40×30×20 mm kutu, kenarlar 2 mm yuvarlatılmış', 'Ø100 mm, 10 mm kalın, 6 cıvata delikli flanş', 'Ø25 × 60 mm boru, et kalınlığı 3 mm'];
 
-export function Home({ me, onStart }: { me: Me | null; onStart: (p: string) => void }) {
+export function Home({ me, onStart }: { me: Me | null; onStart: (p: string, opts?: SendOptions) => void }) {
   const [pick, setPick] = useState('');
   const hour = new Date().getHours();
   const greet = hour < 6 ? 'İyi geceler' : hour < 12 ? 'Günaydın' : hour < 18 ? 'İyi günler' : 'İyi akşamlar';

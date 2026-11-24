@@ -4,6 +4,7 @@ import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import type { Session } from '@supabase/auth-js';
 import { LucideProvider } from 'lucide-react';
 import { api, ApiError, auth, type Device, type Me, type Project, type Task } from './api';
+import type { SendOptions } from './Composer';
 import { Home } from './Home';
 import { Login, takePendingCode } from './Login';
 import { Shell } from './Shell';
@@ -52,7 +53,7 @@ export function CloudApp() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [devices, setDevices] = useState<Device[]>([]);
-  const [pending, setPending] = useState<string | null>(null);
+  const [pending, setPending] = useState<{ prompt: string; model?: string; images?: string[] } | null>(null);
   const [apiErr, setApiErr] = useState<string | null>(null);
   const route = useHashRoute();
 
@@ -83,10 +84,10 @@ export function CloudApp() {
     document.title = name ? `${name} · AICADBridge` : 'AICADBridge Studio';
   }, [route.path, taskId, taskTitle]);
 
-  const start = async (prompt: string) => {
+  const start = async (prompt: string, opts?: SendOptions) => {
     try {
       const t = await api<Task>('/v1/tasks', { method: 'POST', json: {} });
-      setPending(prompt); setTasks((ts) => [t, ...ts]); go(`/t/${t.id}`);
+      setPending({ prompt, model: opts?.model, images: opts?.images }); setTasks((ts) => [t, ...ts]); go(`/t/${t.id}`);
     } catch (e) { setApiErr((e as Error).message); }
   };
 
