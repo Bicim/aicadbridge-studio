@@ -7,7 +7,7 @@ import { api, ApiError, auth, type Device, type Me, type Project, type Task } fr
 import { Home } from './Home';
 import { Login, takePendingCode } from './Login';
 import { Shell } from './Shell';
-import { PageSkeleton } from './ui';
+import { PageSkeleton, Toaster } from './ui';
 import './cloud.css';
 
 const TaskView = lazy(() => import('./TaskView').then((m) => ({ default: m.TaskView })));
@@ -106,14 +106,15 @@ export function CloudApp() {
     : <Home me={me} onStart={start} />;
 
   return (
-    <LucideProvider size={18} strokeWidth={1.5}>
+    <LucideProvider size={16} strokeWidth={1.5}>
       <div className="c-app">
         {!session ? <Login /> : (
-          <Shell me={me} tasks={tasks} path={p}>
+          <Shell me={me} tasks={tasks} path={p} title={taskId ? taskTitle : TITLES[p] ?? 'Yeni görev'}>
             {apiErr && <div className="c-api-err"><div className="c-error" role="alert">{apiErr}</div></div>}
             <Suspense fallback={<PageSkeleton />}>{page}</Suspense>
           </Shell>
         )}
+        <Toaster />
       </div>
     </LucideProvider>
   );

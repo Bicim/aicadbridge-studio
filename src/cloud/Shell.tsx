@@ -2,14 +2,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import {
   Blocks, Box, ChevronsUpDown, CreditCard, FolderKanban, LogOut, Menu as MenuIcon, MessagesSquare,
-  PanelLeftClose, PanelLeftOpen, Settings, SquarePen, Users,
+  PanelLeftClose, PanelLeftOpen, Plus, Settings, SquarePen, Users,
 } from 'lucide-react';
 import { BrandMark } from '../BrandMark';
 import { auth, type Me, type Task } from './api';
-import { Avatar, Menu, PLAN_LABEL, displayName } from './ui';
+import { Avatar, Menu, displayName } from './ui';
 
 const NAV = [
-  { path: '/', label: 'Yeni görev', Icon: SquarePen },
   { path: '/tasks', label: 'Görevler', Icon: MessagesSquare },
   { path: '/projects', label: 'Projeler', Icon: FolderKanban },
   { path: '/files', label: 'Dosyalar', Icon: Box },
@@ -19,7 +18,7 @@ const NAV = [
 const COLLAPSE_KEY = 'aicad.sidebar.collapsed';
 const readCollapsed = () => { try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; } };
 
-export function Shell({ me, tasks, path, children }: { me: Me | null; tasks: Task[]; path: string; children: ReactNode }) {
+export function Shell({ me, tasks, path, title, children }: { me: Me | null; tasks: Task[]; path: string; title?: string; children: ReactNode }) {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [drawer, setDrawer] = useState(false);
   const taskId = path.startsWith('/t/') ? path.slice(3) : null;
@@ -45,19 +44,23 @@ export function Shell({ me, tasks, path, children }: { me: Me | null; tasks: Tas
     <div className={`c-shell${collapsed ? ' collapsed' : ''}${drawer ? ' drawer' : ''}`}>
       <header className="c-topbar">
         <button type="button" className="c-icon-btn" aria-label="Menüyü aç" aria-expanded={drawer} onClick={() => setDrawer(true)}><MenuIcon /></button>
-        <a className="c-brand" href="#/"><BrandMark />AICADBridge</a>
+        <span className="c-topbar-title">{title}</span>
         <a className="c-icon-btn" href="#/" aria-label="Yeni görev"><SquarePen /></a>
       </header>
       <div className="c-scrim" onClick={() => setDrawer(false)} aria-hidden="true" />
 
       <aside className="c-side" aria-label="Kenar çubuğu">
         <div className="c-side-head">
-          <a className="c-brand" href="#/" aria-label="AICADBridge ana sayfa"><BrandMark /><span className="c-label">AICADBridge</span></a>
+          <a className="c-brand" href="#/" aria-label="AICADBridge ana sayfa"><BrandMark size={22} /><span className="c-label">AICADBridge</span></a>
           <button type="button" className="c-icon-btn c-collapse" onClick={toggle}
             aria-label={collapsed ? 'Kenar çubuğunu genişlet' : 'Kenar çubuğunu daralt'} title={collapsed ? 'Genişlet' : 'Daralt'}>
             {collapsed ? <PanelLeftOpen /> : <PanelLeftClose />}
           </button>
         </div>
+
+        <a className="c-btn primary block c-new" href="#/" title={collapsed ? 'Yeni görev' : undefined} aria-label="Yeni görev">
+          <Plus aria-hidden="true" /><span className="c-label">Yeni görev</span>
+        </a>
 
         <nav className="c-nav" aria-label="Ana menü">
           {NAV.map(({ path: p, label, Icon }) => (
@@ -70,7 +73,7 @@ export function Shell({ me, tasks, path, children }: { me: Me | null; tasks: Tas
         {tasks.length > 0 ? (
           <nav className="c-recent" aria-labelledby="c-recent-h">
             <h2 id="c-recent-h">Son görevler</h2>
-            {tasks.slice(0, 12).map((t) => (
+            {tasks.slice(0, 8).map((t) => (
               <a key={t.id} href={`#/t/${t.id}`} aria-current={taskId === t.id ? 'page' : undefined} title={t.title}>{t.title}</a>
             ))}
           </nav>
@@ -82,7 +85,7 @@ export function Shell({ me, tasks, path, children }: { me: Me | null; tasks: Tas
               <Avatar me={me} />
               <span className="c-account-meta">
                 <b>{displayName(me) || '…'}</b>
-                <small>{me ? `${me.credits} kredi · ${PLAN_LABEL[me.plan]}` : ' '}</small>
+                <small>{me ? `${me.credits} kredi` : ' '}</small>
               </span>
               <ChevronsUpDown aria-hidden="true" />
             </>}>

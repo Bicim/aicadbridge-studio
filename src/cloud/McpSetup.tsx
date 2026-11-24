@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Check, Copy, KeyRound, Trash2 } from 'lucide-react';
 import { api, API_URL } from './api';
+import { toast } from './ui';
 
 interface ApiKey { id: string; name: string; prefix: string; created_at: string; last_used_at: string | null; key?: string }
 
@@ -53,8 +54,8 @@ export function McpSetup() {
   };
   const snippet = mcpConfig(client, url, fresh?.key ?? 'aicad_sk_...');
   const copy = async () => {
-    try { await navigator.clipboard.writeText(snippet); setCopied(true); setTimeout(() => setCopied(false), 1500); }
-    catch { setErr('Panoya kopyalanamadı; metni seçip elle kopyala.'); }
+    try { await navigator.clipboard.writeText(snippet); setCopied(true); toast('Kopyalandı'); setTimeout(() => setCopied(false), 1500); }
+    catch { toast('Panoya kopyalanamadı; metni seçip elle kopyala.', 'err'); }
   };
 
   return (
@@ -92,18 +93,21 @@ export function McpSetup() {
       {err && <div className="c-error" role="alert">{err}</div>}
       <div className="c-section">
         <h3 className="c-h3">Etkin anahtarlar</h3>
-        <ul className="c-rows c-rows-bordered">
-          {keys.map((k) => (
-            <li key={k.id} className="c-row">
-              <span className="c-row-main">
-                <span className="c-row-title">{k.name} <span className="c-mono c-muted">{k.prefix}…</span></span>
-                <span className="c-row-sub">{k.last_used_at ? `Son kullanım ${new Date(k.last_used_at).toLocaleString('tr-TR')}` : 'Henüz kullanılmadı'}</span>
-              </span>
-              <button type="button" className="c-icon-btn danger" aria-label={`${k.name} anahtarını iptal et`} title="Anahtarı iptal et" onClick={() => revoke(k.id)}><Trash2 /></button>
-            </li>
-          ))}
-          {!keys.length && <li className="c-row-empty">Henüz anahtar yok.</li>}
-        </ul>
+        <div className="c-card flush c-table-wrap">
+          <table className="c-table">
+            <thead><tr><th>Anahtar</th><th>Son kullanım</th><th /></tr></thead>
+            <tbody>
+              {keys.map((k) => (
+                <tr key={k.id}>
+                  <td>{k.name} <span className="c-mono c-muted">{k.prefix}…</span></td>
+                  <td className="c-nowrap">{k.last_used_at ? new Date(k.last_used_at).toLocaleString('tr-TR') : 'Henüz kullanılmadı'}</td>
+                  <td className="act"><button type="button" className="c-icon-btn danger" aria-label={`${k.name} anahtarını iptal et`} title="Anahtarı iptal et" onClick={() => revoke(k.id)}><Trash2 /></button></td>
+                </tr>
+              ))}
+              {!keys.length && <tr><td colSpan={3} className="c-row-empty">Henüz anahtar yok.</td></tr>}
+            </tbody>
+          </table>
+        </div>
       </div>
       <details className="c-details">
         <summary>Asistanın kullanabildiği araçlar</summary>

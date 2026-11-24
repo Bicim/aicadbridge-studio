@@ -7,17 +7,23 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { onSchemeChange, readViewerTheme } from '../viewerTheme';
 
-export function ModelViewer({ url, height = 320 }: { url: string; height?: number }) {
+/** `height` verilmezse görüntüleyici kabını doldurur (tezgâh). `fit` her artışta kamerayı modele yeniden sığdırır;
+    `edges` kenar çizgilerini açar/kapatır. */
+export function ModelViewer({ url, height, fit = 0, edges = true }: { url: string; height?: number; fit?: number; edges?: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState<string | null>(null);
+  const fitRef = useRef<() => void>(() => undefined);
+  const edgesRef = useRef<(on: boolean) => void>(() => undefined);
+  const edgesOn = useRef(edges);
+  edgesOn.current = edges;
 
   useEffect(() => {
     const el = host.current;
     if (!el) return;
     setErr(null);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(readViewerTheme(el).bg);
+    renderer.setClearColor(0, 0); // zemin gradyanı CSS'ten (.c-viewer)
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -37,10 +43,11 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
 
     const resize = () => {
       const w = el.clientWidth || 1;
-      renderer.setSize(w, height, false);
+      const h = height ?? (el.clientHeight || 1);
+      renderer.setSize(w, h, false);
       renderer.domElement.style.width = '100%';
-      renderer.domElement.style.height = `${height}px`;
-      camera.aspect = w / height;
+      renderer.domElement.style.height = height === undefined ? '100%' : `${height}px`;
+      camera.aspect = w / h;
       camera.updateProjectionMatrix();
       invalidate();
     };
@@ -51,10 +58,17 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
     let disposed = false;
     let grid: THREE.GridHelper | null = null;
     let buildGrid = () => undefined as void;
-    // Sistem teması değişince zemin ve ızgara renkleri token'lardan yeniden okunur.
-    const offScheme = onSchemeChange(() => { renderer.setClearColor(readViewerTheme(el).bg); buildGrid(); invalidate(); });
-    const material = new THREE.MeshStandardMaterial({ color: 0x2f7fb8, metalness: 0.25, roughness: 0.45 });
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0x0b2236, transparent: true, opacity: 0.55 });
+    const t0 = readViewerTheme(el);
+    const material = new THREE.MeshStandardMaterial({ color: t0.model, metalness: 0.35, roughness: 0.42 });
+    const edgeMat = new THREE.LineBasicMaterial({ color: t0.edge, transparent: true, opacity: 0.6 });
+    // Tema (sistem ya da Ayarlar > Görünüm) değişince model, kenar ve ızgara renkleri token'lardan yeniden okunur.
+    const offScheme = onSchemeChange(() => {
+      const t = readViewerTheme(el);
+      material.color.set(t.model); edgeMat.color.set(t.edge);
+      buildGrid(); invalidate();
+    });
+    const lines: THREE.LineSegments[] = [];
+    edgesRef.current = (on) => { for (const l of lines) l.visible = on; invalidate(); };
     new GLTFLoader().load(url, (gltf) => {
       if (disposed) return;
       const root = gltf.scene;
@@ -63,7 +77,10 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
         const m = o as THREE.Mesh;
         if (m.isMesh) {
           m.material = material;
-          m.add(new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), edgeMat));
+          const l = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), edgeMat);
+          l.visible = edgesOn.current;
+          lines.push(l);
+          m.add(l);
         }
       });
       scene.add(root);
@@ -79,15 +96,20 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
         scene.add(grid);
       };
       buildGrid();
-      controls.target.copy(center);
-      camera.position.copy(center).add(new THREE.Vector3(1, 0.8, 1.2).normalize().multiplyScalar(r * 3.2));
-      camera.near = r / 100; camera.far = r * 100;
-      camera.updateProjectionMatrix();
-      invalidate();
+      fitRef.current = () => {
+        controls.target.copy(center);
+        camera.position.copy(center).add(new THREE.Vector3(1, 0.8, 1.2).normalize().multiplyScalar(r * 3.2));
+        camera.near = r / 100; camera.far = r * 100;
+        camera.updateProjectionMatrix();
+        invalidate();
+      };
+      fitRef.current();
     }, undefined, () => !disposed && setErr('Önizleme yüklenemedi'));
 
     return () => {
       disposed = true;
+      fitRef.current = () => undefined;
+      edgesRef.current = () => undefined;
       offScheme();
       cancelAnimationFrame(raf);
       ro.disconnect();
@@ -103,8 +125,11 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
     };
   }, [url, height]);
 
+  useEffect(() => { if (fit) fitRef.current(); }, [fit]);
+  useEffect(() => { edgesRef.current(edges); }, [edges]);
+
   return (
-    <div className="c-viewer" ref={host} style={{ height }}>
+    <div className={`c-viewer${height === undefined ? ' fill' : ''}`} ref={host} style={height === undefined ? undefined : { height }}>
       {err && <div className="c-viewer-err">{err}</div>}
     </div>
   );

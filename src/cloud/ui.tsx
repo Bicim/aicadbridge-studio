@@ -1,5 +1,6 @@
-/* Küçük ortak arayüz parçaları: avatar, sayfa başlığı, boş durum, açılır menü, iskelet. */
+/* Küçük ortak arayüz parçaları: avatar, sayfa başlığı, boş durum, tost, açılır menü, iskelet. */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react';
 import type { Me } from './api';
 
 export function Avatar({ me, large = false }: { me: Me | null; large?: boolean }) {
@@ -26,13 +27,49 @@ export function PageHeader({ title, desc, actions }: { title: ReactNode; desc?: 
   );
 }
 
-/** Boş durum: tek cümle + tek eylem. */
-export function Empty({ icon, text, action }: { icon?: ReactNode; text: ReactNode; action?: ReactNode }) {
+/** Boş durum: ikon + başlık + tek cümle + tek eylem. */
+export function Empty({ icon, title, text, action }: { icon?: ReactNode; title?: ReactNode; text?: ReactNode; action?: ReactNode }) {
   return (
     <div className="c-empty">
       {icon && <span className="c-empty-icon" aria-hidden="true">{icon}</span>}
-      <p>{text}</p>
+      {title && <h3>{title}</h3>}
+      {text && <p>{text}</p>}
       {action}
+    </div>
+  );
+}
+
+/* Tost: kütüphanesiz; modül düzeyinde dinleyici + CloudApp kökündeki tek <Toaster />. En çok 3; ok/info 4 sn, hata kapatılana dek. */
+type ToastKind = 'ok' | 'warn' | 'err' | 'info';
+interface ToastItem { id: number; msg: string; kind: ToastKind }
+let toasts: ToastItem[] = [];
+let nextId = 1;
+const listeners = new Set<(t: ToastItem[]) => void>();
+const emit = () => listeners.forEach((l) => l(toasts));
+export function toast(msg: string, kind: ToastKind = 'ok'): void {
+  const id = nextId++;
+  toasts = [...toasts, { id, msg, kind }].slice(-3);
+  emit();
+  if (kind !== 'err') setTimeout(() => dismiss(id), 4000);
+}
+const dismiss = (id: number) => { toasts = toasts.filter((t) => t.id !== id); emit(); };
+const TOAST_ICON = { ok: CheckCircle2, warn: AlertTriangle, err: XCircle, info: Info } as const;
+
+export function Toaster() {
+  const [items, setItems] = useState(toasts);
+  useEffect(() => { listeners.add(setItems); return () => { listeners.delete(setItems); }; }, []);
+  if (!items.length) return null;
+  return (
+    <div className="c-toaster">
+      {items.map((t) => {
+        const Icon = TOAST_ICON[t.kind];
+        return (
+          <div key={t.id} className={`c-toast ${t.kind}`} role={t.kind === 'err' ? 'alert' : 'status'}>
+            <Icon aria-hidden="true" /><span>{t.msg}</span>
+            <button type="button" className="c-icon-btn" aria-label="Kapat" onClick={() => dismiss(t.id)}><X /></button>
+          </div>
+        );
+      })}
     </div>
   );
 }

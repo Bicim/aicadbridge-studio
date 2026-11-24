@@ -7,9 +7,11 @@
 }
 .c-task-head h1 { min-width: 0; font-size: 14px; font-weight: 500; letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.c-thread { flex: 1; width: 100%; max-width: 800px; margin: 0 auto; padding: 32px 24px 24px; display: flex; flex-direction: column; gap: 28px; }
-.c-msg.user { align-self: flex-end; max-width: 80%; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-.c-bubble { padding: 10px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+.c-thread { flex: 1; width: 100%; max-width: 800px; margin: 0 auto; padding: 32px 24px 24px; display: flex; flex-direction: column; gap: 20px; }
+/* Sona kaydırınca son mesaj yapışkan yazma kutusunun altında kalmasın. */
+.c-thread-end { flex: none; scroll-margin-bottom: 160px; }
+.c-msg.user { align-self: flex-end; max-width: 85%; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.c-bubble { padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px 14px 4px 14px; background: var(--surface-2); white-space: pre-wrap; overflow-wrap: anywhere; }
 .c-msg-tools { display: flex; align-items: center; gap: 4px; color: var(--text-3); font-size: 12px; }
 .c-msg-tools .c-btn.ghost { color: var(--text-3); height: 28px; }
 .c-msg-tools .c-btn.ghost:hover { color: var(--text-1); }
@@ -33,10 +35,14 @@ button.c-steps-head:hover { color: var(--text-1); }
 .c-steps-list ul { margin-top: 2px; padding-left: 14px; font-size: 12px; color: var(--text-3); }
 
 .c-model { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); }
-.c-model > :first-child { border-radius: var(--r-card) var(--r-card) 0 0; overflow: hidden; }
-.c-viewer { position: relative; width: 100%; background: var(--viewer-bg); display: grid; place-items: center; }
+.c-model:not(.compact) > :first-child { border-radius: var(--r-card) var(--r-card) 0 0; overflow: hidden; }
+.c-viewer { position: relative; width: 100%; background: linear-gradient(180deg, var(--viewer-bg-2), var(--viewer-bg)); display: grid; place-items: center; }
+.c-viewer.fill { position: absolute; inset: 0; }
+.c-viewer-box { position: relative; aspect-ratio: 16 / 10; }
 .c-viewer canvas { display: block; touch-action: none; }
-.c-viewer-skel { animation: breathe 1.4s ease-in-out infinite; }
+.c-viewer.fill canvas { position: absolute; inset: 0; }
+.c-viewer-skel { animation: breathe 1.4s ease-in-out infinite; color: var(--text-3); }
+.c-viewer-skel > .c-spin { width: 28px; height: 28px; border-width: 2.5px; }
 .c-viewer-empty { height: 120px; color: var(--text-3); font-size: 13px; }
 .c-viewer-err { position: absolute; inset: 0; display: grid; place-items: center; color: var(--text-3); font-size: 13px; }
 .c-model-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border-top: 1px solid var(--line); }
@@ -50,7 +56,24 @@ button.c-steps-head:hover { color: var(--text-1); }
 .c-model-warn svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
 .c-model-note { padding: 10px 14px; border-top: 1px solid var(--line); color: var(--text-2); font-size: 13px; }
 .c-model-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--line); }
-.c-model > :last-child { border-radius: 0 0 var(--r-card) var(--r-card); }
+.c-model:not(.compact) > :last-child { border-radius: 0 0 var(--r-card) var(--r-card); }
+
+/* Kompakt model satırı (tezgâh düzeninde konuşmadaki modeller): tıklanınca sağ sütunda açılır. */
+.c-model.compact {
+  display: flex; align-items: center; gap: 12px; width: 100%; height: 56px; padding: 0 8px 0 12px; border-radius: 12px;
+  text-align: left; color: var(--text-1); cursor: pointer; transition: border-color var(--dur-1), background-color var(--dur-1);
+}
+.c-model.compact:hover { border-color: var(--line-2); }
+.c-model.compact.selected { border-color: var(--accent-line); background: var(--accent-soft); }
+.c-model-tile { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); color: var(--text-2); }
+.c-model-tile svg { width: 16px; height: 16px; }
+.c-model.compact.selected .c-model-tile { color: var(--accent-text); border-color: var(--accent-line); }
+.c-model.compact .c-model-info { flex: 1; display: flex; flex-direction: column; gap: 1px; }
+.c-model.compact .c-model-title { display: block; font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-model.compact .c-model-dims { margin-top: 0; font-size: 12px; color: var(--text-3); }
+.c-model.compact .c-btn { pointer-events: none; }
+.c-model.compact:hover .c-btn.ghost { color: var(--text-1); }
+.c-model.compact.selected .c-btn.ghost { color: var(--accent-text); }
 .c-menu .c-tile.s32 { margin: -2px 0; }
 
 .c-params { display: grid; gap: 12px; padding: 14px; border-top: 1px solid var(--line); }
@@ -70,6 +93,45 @@ button.c-steps-head:hover { color: var(--text-1); }
 .c-app .c-os-send select { width: auto; min-width: 200px; max-width: 100%; height: 32px; font-size: 13px; }
 .c-os-note { font-size: 12.5px; color: var(--text-2); }
 .c-os-note a { color: var(--accent-text); }
+
+/* <1200px: sütun sarmalayıcı düzende yer kaplamaz (konuşma ve yazma kutusu .c-task'ın doğrudan çocukları gibi). */
+.c-thread-col { display: contents; }
+
+/* ≥1200px "tezgâh": solda konuşma, sağda kalıcı görüntüleyici + parametre dok'u. */
+.c-task.split { display: grid; grid-template-columns: minmax(400px, 520px) minmax(0, 1fr); grid-template-rows: 52px minmax(0, 1fr); height: 100%; min-height: 0; }
+.c-task.split .c-task-head { grid-column: 1 / -1; position: static; padding: 0 20px; }
+.c-task.split .c-thread-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow-y: auto; border-right: 1px solid var(--line); }
+.c-task.split .c-thread { max-width: none; margin: 0; padding: 20px 20px 0; }
+.c-task.split .c-task-foot { padding: 12px 20px 20px; }
+.c-task.split .c-task-foot > * { max-width: none; }
+
+.c-bench { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: linear-gradient(180deg, var(--viewer-bg-2), var(--viewer-bg)); }
+.c-bench-stage { position: relative; flex: 1; min-height: 360px; }
+.c-bench .c-viewer { background: transparent; }
+.c-bench-empty { color: var(--text-3); font-size: 13px; }
+.c-bench-wait { display: inline-flex; align-items: center; gap: 10px; }
+.c-bench-tl { position: absolute; z-index: 1; top: 12px; left: 12px; right: 96px; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.c-bench-title { min-width: 0; font-size: 13px; font-weight: 500; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-app .c-bench-tl select.sm { flex: none; width: auto; background-color: color-mix(in srgb, var(--surface) 80%, transparent); }
+.c-bench-ver { flex: none; font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.c-bench-tr { position: absolute; z-index: 1; top: 12px; right: 12px; }
+.c-tool-group { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 8px; background: color-mix(in srgb, var(--surface) 80%, transparent); }
+.c-tool-group .c-icon-btn { width: 28px; height: 28px; border-radius: 6px; }
+.c-tool-group .c-icon-btn[aria-pressed=true] { color: var(--text-1); background: var(--surface-2); }
+.c-bench-bl { position: absolute; z-index: 1; left: 12px; bottom: 12px; display: flex; gap: 6px; pointer-events: none; }
+
+.c-bench-dock { flex: none; display: flex; flex-direction: column; max-height: 42%; border-top: 1px solid var(--line); background: var(--surface); }
+.c-bench-dock-head { position: relative; z-index: 2; flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; height: 48px; padding: 0 20px; }
+.c-bench-dock-head h2 { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; letter-spacing: 0; }
+.c-bench-dock-head .c-model-actions { flex-wrap: nowrap; }
+.c-model-actions .c-btn.primary svg:last-child:not(:first-child) { color: inherit; opacity: 0.75; }
+.c-badge { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text-2); font: 500 11.5px var(--font-mono); font-variant-numeric: tabular-nums; }
+.c-bench-dock-body { min-height: 0; overflow-y: auto; padding: 4px 20px 16px; }
+.c-bench-dock-body .c-params { gap: 0; padding: 0; border-top: 0; }
+.c-bench-dock-body .c-param { min-height: 40px; gap: 16px; }
+.c-bench-dock-body > .c-model-warn, .c-bench-dock-body > .c-model-note, .c-bench-dock-body > .c-model-row { margin: 4px 0 8px; border: 1px solid var(--line); border-radius: 10px; }
+.c-bench-dock-body > .c-model-warn { border-color: transparent; }
+.c-bench-none { padding: 6px 0 2px; font-size: 13px; color: var(--text-3); }
 
 @media (max-width: 768px) {
   .c-task-head { padding: 0 16px; }

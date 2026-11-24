@@ -29,6 +29,7 @@ export function Composer({ onSend, busy, onStop, me, placeholder, label, initial
         onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send(); } }} />
       <div className="c-composer-bar">
         <span className="c-composer-model" title={model}>{model}</span>
+        <span className="c-composer-hint">Enter gönderir · Shift+Enter satır</span>
         {busy && onStop
           ? <button type="button" className="c-send stop" onClick={onStop} aria-label="Durdur" title="Durdur"><Square fill="currentColor" /></button>
           : <button type="button" className="c-send" onClick={send} disabled={!text.trim() || busy} aria-label="Gönder" title="Gönder (Enter)"><ArrowUp /></button>}

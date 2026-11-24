@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { auth, authProviders } from './api';
 import { BrandMark } from '../BrandMark';
+import { LoginArt } from './LoginArt';
 
 export const SITE_URL = ((import.meta.env.VITE_SITE_URL as string | undefined) ?? 'http://localhost:8124').replace(/\/$/, '');
 
@@ -62,6 +63,11 @@ export function Login() {
 
   return (
     <main className="c-login">
+      <aside className="c-login-art" aria-hidden="true">
+        <LoginArt />
+        <p>Cümleden ölçüsü tutan B-rep katıya.</p>
+      </aside>
+      <div className="c-login-col">
       <div className="c-login-inner">
         <a className="c-brand" href={SITE_URL}><BrandMark size={26} />AICADBridge</a>
         <section className="c-login-card" aria-labelledby="login-title">
@@ -89,6 +95,7 @@ export function Login() {
         <p className="c-fine c-login-foot">
           Devam ederek <a href={SITE_URL + '/#sss'}>kullanım koşullarını</a> kabul edersin. · <a href="#/local">Hesapsız yerel mod</a>
         </p>
+      </div>
       </div>
     </main>
   );

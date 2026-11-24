@@ -1,81 +1,101 @@
-/* Tasarım sistemi (vault/tasarim-sistemi.md): token'lar ve temel öğeler.
-   Koyu tema varsayılan; açık tema sistem tercihiyle (prefers-color-scheme). Her iki mod da bu dosyayı kullanır. */
+/* Tasarım sistemi v2 "Ölçülü" (vault/tasarim-sistemi.md): token'lar ve temel öğeler.
+   Koyu varsayılan. Açık tema: sistem tercihi (data-theme yoksa) ya da data-theme="light".
+   data-theme index.html'deki ön-boyama betiğinden ve Ayarlar > Görünüm'den gelir. */
 :root {
   color-scheme: dark;
-  --bg: #0a0a0b;
-  --surface: #111113;
-  --surface-2: #17171a;
-  --line: #232327;
-  --line-2: #2e2e33;
-  --text-1: #ededef;
-  --text-2: #a1a1aa;
-  --text-3: #71717a;
-  --accent: #00b8d4;
-  --accent-ink: #00161a;
-  --accent-text: #00b8d4;
-  --accent-soft: rgb(0 184 212 / 0.12);
-  --ok: #3ecf8e;
-  --warn: #f5a524;
-  --err: #f26d6d;
-  --ok-soft: rgb(62 207 142 / 0.12);
-  --warn-soft: rgb(245 165 36 / 0.12);
-  --err-soft: rgb(242 109 109 / 0.12);
-  --overlay: rgb(0 0 0 / 0.6);
-  --shadow-pop: 0 16px 48px rgb(0 0 0 / 0.45);
-  --viewer-bg: #111113;
-  --viewer-grid: #2e2e33;
-  --viewer-grid-2: #1c1c20;
+  --bg: #07090c; --surface: #0d1015; --surface-2: #131720; --surface-3: #1a1f29;
+  --line: #1d232d; --line-2: #2a313d; --line-3: #3a4352;
+  --text-1: #e9eef5; --text-2: #9ba5b4; --text-3: #758091; --text-4: #4a5361;
+  --accent: #00b8d4; --accent-hover: #1fc7e1; --accent-press: #0090a8; --accent-hi: #5fe6ff;
+  --accent-ink: #001418; --accent-text: #2ccbe6;
+  --accent-soft: rgb(0 184 212 / 0.12); --accent-line: rgb(0 184 212 / 0.38); --accent-glow: rgb(0 184 212 / 0.35);
+  --dim: #ff7a45; --dim-soft: rgb(255 122 69 / 0.14);
+  --ok: #3ecf8e; --ok-soft: rgb(62 207 142 / 0.12);
+  --warn: #eab308; --warn-soft: rgb(234 179 8 / 0.12);
+  --err: #f26d6d; --err-soft: rgb(242 109 109 / 0.12);
+  --overlay: rgb(3 5 8 / 0.66); --grid-line: rgb(155 165 180 / 0.07); --glow-top: rgb(0 184 212 / 0.14);
+  --viewer-bg: #0a0d11; --viewer-bg-2: #121722; --viewer-grid: #232b36; --viewer-grid-2: #151a22;
+  --viewer-model: #a9b6c6; --viewer-edge: #0b0f14;
+  --e1: inset 0 1px 0 rgb(255 255 255 / 0.03), 0 1px 2px rgb(0 0 0 / 0.4);
+  --e2: inset 0 1px 0 rgb(255 255 255 / 0.04), 0 10px 28px -8px rgb(0 0 0 / 0.55);
+  --e3: 0 24px 64px -12px rgb(0 0 0 / 0.7), 0 0 0 1px var(--line-2);
+  --glow: 0 0 0 1px var(--accent-line), 0 8px 24px -8px var(--accent-glow);
+  --ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  --code-bg: var(--bg); --inv-light: none; --inv-dark: invert(1); --brand-mix: 100%;
 
-  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
-  --r-ctl: 8px;
-  --r-card: 12px;
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --dur: 140ms;
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI Variable", "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "Cascadia Code", "SF Mono", Consolas, monospace;
+  --t-label: 500 11px/16px var(--font-mono);
+  --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px; --s-16: 64px;
+  --r-xs: 4px; --r-sm: 6px; --r-ctl: 8px; --r-card: 12px; --r-panel: 16px; --r-pill: 999px;
+  --dur-1: 100ms; --dur-2: 160ms; --dur-3: 240ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1); --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
 }
-
 @media (prefers-color-scheme: light) {
-  :root {
+  :root:not([data-theme="dark"]) {
     color-scheme: light;
-    --bg: #fafafa;
-    --surface: #ffffff;
-    --surface-2: #f4f4f5;
-    --line: #e7e7ea;
-    --line-2: #d4d4d8;
-    --text-1: #111113;
-    --text-2: #52525b;
-    --text-3: #8a8a93;
-    /* Vurgu aynı; yalnız metin olarak kullanıldığında beyaz zeminde okunur ton. */
-    --accent-text: #007a91;
-    --ok: #15803d;
-    --warn: #b45309;
-    --err: #dc2626;
-    --ok-soft: rgb(21 128 61 / 0.1);
-    --warn-soft: rgb(180 83 9 / 0.1);
-    --err-soft: rgb(220 38 38 / 0.08);
-    --overlay: rgb(9 9 11 / 0.32);
-    --shadow-pop: 0 16px 48px rgb(9 9 11 / 0.16);
-    --viewer-bg: #f4f4f5;
-    --viewer-grid: #d4d4d8;
-    --viewer-grid-2: #e7e7ea;
+    --bg: #f5f7fa; --surface: #ffffff; --surface-2: #f0f3f7; --surface-3: #e6eaf0;
+    --line: #e1e5eb; --line-2: #cdd3dc; --line-3: #aeb6c2;
+    --text-1: #0a0e14; --text-2: #465062; --text-3: #5f6979; --text-4: #9aa2ae;
+    --accent: #00a6c2; --accent-hover: #0bb6d2; --accent-press: #008aa3; --accent-hi: #19c3df;
+    --accent-ink: #001418; --accent-text: #00768c;
+    --accent-soft: rgb(0 166 194 / 0.10); --accent-line: rgb(0 138 163 / 0.35); --accent-glow: rgb(0 166 194 / 0.22);
+    --dim: #d9530f; --dim-soft: rgb(217 83 15 / 0.10);
+    --ok: #15803d; --ok-soft: rgb(21 128 61 / 0.10);
+    --warn: #a16207; --warn-soft: rgb(161 98 7 / 0.10);
+    --err: #dc2626; --err-soft: rgb(220 38 38 / 0.10);
+    --overlay: rgb(10 14 20 / 0.36); --grid-line: rgb(10 14 20 / 0.05); --glow-top: rgb(0 166 194 / 0.10);
+    --viewer-bg: #eef1f5; --viewer-bg-2: #f8fafc; --viewer-grid: #cfd5de; --viewer-grid-2: #e1e5eb;
+    --viewer-model: #8a99ab; --viewer-edge: #1a2230;
+    --e1: 0 1px 2px rgb(10 14 20 / 0.06);
+    --e2: 0 10px 28px -10px rgb(10 14 20 / 0.16);
+    --e3: 0 24px 64px -16px rgb(10 14 20 / 0.24), 0 0 0 1px var(--line);
+    --code-bg: #0b0f16; --inv-light: invert(1); --inv-dark: none; --brand-mix: 72%;
   }
+}
+:root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f5f7fa; --surface: #ffffff; --surface-2: #f0f3f7; --surface-3: #e6eaf0;
+    --line: #e1e5eb; --line-2: #cdd3dc; --line-3: #aeb6c2;
+    --text-1: #0a0e14; --text-2: #465062; --text-3: #5f6979; --text-4: #9aa2ae;
+    --accent: #00a6c2; --accent-hover: #0bb6d2; --accent-press: #008aa3; --accent-hi: #19c3df;
+    --accent-ink: #001418; --accent-text: #00768c;
+    --accent-soft: rgb(0 166 194 / 0.10); --accent-line: rgb(0 138 163 / 0.35); --accent-glow: rgb(0 166 194 / 0.22);
+    --dim: #d9530f; --dim-soft: rgb(217 83 15 / 0.10);
+    --ok: #15803d; --ok-soft: rgb(21 128 61 / 0.10);
+    --warn: #a16207; --warn-soft: rgb(161 98 7 / 0.10);
+    --err: #dc2626; --err-soft: rgb(220 38 38 / 0.10);
+    --overlay: rgb(10 14 20 / 0.36); --grid-line: rgb(10 14 20 / 0.05); --glow-top: rgb(0 166 194 / 0.10);
+    --viewer-bg: #eef1f5; --viewer-bg-2: #f8fafc; --viewer-grid: #cfd5de; --viewer-grid-2: #e1e5eb;
+    --viewer-model: #8a99ab; --viewer-edge: #1a2230;
+    --e1: 0 1px 2px rgb(10 14 20 / 0.06);
+    --e2: 0 10px 28px -10px rgb(10 14 20 / 0.16);
+    --e3: 0 24px 64px -16px rgb(10 14 20 / 0.24), 0 0 0 1px var(--line);
+    --code-bg: #0b0f16; --inv-light: invert(1); --inv-dark: none; --brand-mix: 72%;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body, #root { height: 100%; }
 body {
-  background: var(--bg);
-  color: var(--text-1);
-  font: 14px/1.55 var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  overflow: hidden;
+  background: var(--bg); color: var(--text-1);
+  font: 400 14px/22px var(--font-sans);
+  -webkit-font-smoothing: antialiased; overflow: hidden;
 }
-h1, h2, h3, h4 { font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; }
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.2; letter-spacing: -0.01em; }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
 input, select, textarea { font: inherit; color: inherit; }
 a { color: inherit; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+:focus-visible { outline: none; box-shadow: var(--ring); }
+/* Windows yüksek karşıtlık: box-shadow çizilmez; odak halkası gerçek outline olsun. */
+@media (forced-colors: active) { :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; } }
 ::selection { background: var(--accent-soft); }
+.u-grid {
+  background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 35%, transparent 100%);
+}
+.u-glow { background: radial-gradient(640px 320px at 50% -8%, var(--glow-top), transparent 70%); }
 
 .boot { display: grid; place-items: center; height: 100%; }
 .spinner {
