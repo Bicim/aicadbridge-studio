@@ -35,7 +35,7 @@ Cümle ──▶ PLANNER (niyet → plan JSON: adımlar, parametreler, beklentil
 
 ## Kullanım
 
-1. **⚙ Ayarlar** → sağlayıcı seç (OpenAI / Anthropic / Google / OpenRouter / OpenAI-uyumlu: DeepSeek, Ollama, LM Studio), API anahtarını gir, **Modelleri Listele** ya da model adını yaz.
+1. **Ayarlar** → sağlayıcı seç (OpenAI / Anthropic / Google / OpenRouter / OpenAI-uyumlu: DeepSeek, Ollama, LM Studio), API anahtarını gir, **Modelleri Listele** ya da model adını yaz.
 2. Bir cümle yaz: *"100mm çapında flanş, çevresinde 4 adet M6 cıvata deliği"*
 3. Planı, kodu (ModelIR) ve doğrulama raporunu izle; kaydırıcılarla oyna.
 4. **Üretilebilirlik (DfAM)** panelinde süreci seç (varsayılan FDM) ve **Analiz et**'e bas; ❌ bulguları **AI'ya gönder** ile düzelttir.
@@ -56,15 +56,24 @@ npm run build     # tsc + vite (dist/)
 
 ```
 src/
+  main.tsx  giriş: yalnız mod seçer; yerel mod ve bulut uygulaması ayrı parçalar (React.lazy)
+  styles/base.css  tasarım sistemi token'ları (koyu varsayılan, açık tema prefers-color-scheme)
+  cloud/   bulut uygulaması: CloudApp (oturum + yönlendirme), Shell (kenar çubuğu), Login, Home,
+           TaskView + ModelViewer (three, yalnız görünür olunca), IntegrationsPage, pages (hesap sayfaları),
+           LogoTile + logos.ts (scripts/sync-logos.mjs üretir), api (yalnız @supabase/auth-js)
   core/    types (Plan/ModelIR), expr (güvenli ifadeler), executor (CSG),
            volume, verify, parameters (slider), dfam (üretilebilirlik),
            snapshot (6 görünümlü denetim sayfası), export (STL/3MF/GLB/GLTF/JSON)
   ai/      providers (çoklu sağlayıcı + görsel, tarayıcıdan), prompts (TR),
            pipeline (iki aşama + self-healing + görsel denetim), vision
   ui/      Viewer (three.js), Sliders, DfamPanel, InspectionSheet, SettingsDialog
-  App.tsx  orkestrasyon
+  App.tsx  yerel mod orkestrasyonu (local.css)
+public/logos/  uygulama logoları (kaynak/lisans: public/logos/SOURCES.md)
 tests/     vitest
 ```
+
+Logoları ortak paketten yenilemek: `node scripts/sync-logos.mjs [paket-klasörü]` (varsayılan `../../assets/logos`).
+Ürün adları ve logolar sahiplerinin ticari markalarıdır; yalnızca uyumluluğu belirtmek için kullanılır.
 
 ## Kısıtlar (v0.1.0)
 
@@ -74,7 +83,7 @@ tests/     vitest
 
 ## Lisans
 
-MIT · three.js (MIT) · three-bvh-csg (MIT) · three-mesh-bvh (MIT)
+MIT · three.js (MIT) · three-bvh-csg (MIT) · three-mesh-bvh (MIT) · lucide-react (ISC) · @supabase/auth-js (MIT)
 
 DfAM ölçüm yaklaşımı ve süreç limit tablosu [earthtojake/text-to-cad](https://github.com/earthtojake/text-to-cad) (MIT) projesinden uyarlanmıştır.
 

@@ -1,0 +1,74 @@
+/* Entegrasyonlar sayfası: kurulum kartı, bağlı programlar, katalog, ayrıntı penceresi, MCP, Onshape formu. */
+.c-status { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.c-status-line { display: flex; align-items: center; gap: 6px; }
+.c-status-line > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-howto { padding-left: 20px; display: flex; flex-direction: column; gap: 4px; color: var(--text-2); font-size: 13.5px; line-height: 1.55; }
+.c-howto b { color: var(--text-1); font-weight: 500; }
+.c-howto .c-link svg { width: 13px; height: 13px; margin-left: 4px; vertical-align: -1px; }
+.c-details { font-size: 13px; color: var(--text-2); }
+.c-details summary { cursor: pointer; width: max-content; max-width: 100%; color: var(--text-2); }
+.c-details summary:hover { color: var(--text-1); }
+.c-details[open] > :not(summary) { margin-top: 10px; }
+.c-details[open] { display: flex; flex-direction: column; gap: 10px; }
+.c-app .c-code-input { width: 200px; flex: none; font: 18px var(--font-mono); letter-spacing: 0.12em; text-transform: uppercase; }
+
+.c-confirm { border-color: var(--accent); }
+.c-confirm-app { display: flex; align-items: center; gap: 14px; }
+.c-confirm h2 { font-size: 16px; }
+.c-confirm p { margin-top: 4px; }
+
+.c-installer { flex-direction: row; align-items: center; gap: 14px; padding: 16px 20px; }
+.c-installer .c-tile { color: var(--text-1); }
+.c-installer-text { flex: 1; min-width: 0; }
+.c-installer-text p { margin-top: 2px; color: var(--text-2); font-size: 13.5px; }
+
+.c-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.c-seg { display: inline-flex; flex: none; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface-2); }
+.c-seg button { height: 28px; padding: 0 12px; border-radius: 6px; color: var(--text-2); font-size: 13px; white-space: nowrap; transition: background-color var(--dur) var(--ease), color var(--dur) var(--ease); }
+.c-seg button:hover { color: var(--text-1); }
+.c-seg button[aria-pressed=true], .c-seg button[aria-selected=true] { background: var(--surface); color: var(--text-1); box-shadow: 0 0 0 1px var(--line); }
+
+.c-cat { display: flex; flex-direction: column; gap: 10px; }
+.c-cat-title { font-size: 13px; font-weight: 500; color: var(--text-2); letter-spacing: 0; }
+.c-int-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.c-int {
+  display: flex; align-items: center; gap: 12px; min-width: 0; padding: 12px 14px; text-align: left;
+  border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface); color: var(--text-1);
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+.c-int:hover { border-color: var(--line-2); background: var(--surface-2); }
+.c-int:hover .c-tile { background: var(--surface); }
+.c-int-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.c-int-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.c-int-name { flex: 1; min-width: 0; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.c-int-desc { font-size: 12.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.c-dialog-head { display: flex; align-items: center; gap: 14px; padding-right: 32px; }
+.c-dialog-head h2 { font-size: 18px; margin-bottom: 6px; }
+.c-dialog > p { font-size: 14px; line-height: 1.55; }
+
+.c-mcp { gap: 16px; scroll-margin-top: 24px; }
+.c-mcp h2 { font-size: 16px; }
+.c-mcp-lead { margin-top: 6px; font-size: 13.5px; line-height: 1.55; max-width: 72ch; }
+.c-mcp .c-seg { align-self: flex-start; flex-wrap: wrap; }
+.c-h3 { font-size: 13px; font-weight: 500; color: var(--text-2); letter-spacing: 0; }
+.c-code-wrap { position: relative; }
+.c-code {
+  margin: 0; padding: 12px 48px 12px 14px; border: 1px solid var(--line); border-radius: var(--r-ctl);
+  background: var(--bg); color: var(--text-1); font: 12px/1.6 var(--font-mono); white-space: pre-wrap; word-break: break-all;
+}
+.c-code-copy { position: absolute; top: 6px; right: 6px; }
+.c-code-copy:disabled { opacity: 0.4; cursor: default; background: none; }
+.c-mcp-url { overflow-wrap: anywhere; }
+.c-rows-bordered { border: 1px solid var(--line); border-radius: var(--r-ctl); }
+.c-tools { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--text-2); }
+.c-tools b { font-family: var(--font-mono); font-weight: 500; color: var(--text-1); }
+
+.c-tm { padding-top: 16px; border-top: 1px solid var(--line); font-size: 12px; color: var(--text-3); line-height: 1.5; }
+
+@media (max-width: 640px) {
+  .c-int-grid { grid-template-columns: minmax(0, 1fr); }
+  .c-installer { flex-wrap: wrap; }
+  .c-installer .c-btn { width: 100%; }
+  .c-dialog { padding: 20px; }
+}

@@ -1,19 +1,27 @@
-/* Entegrasyonlar: eşleştirme onayı, bağlı programlar, aranabilir katalog ve ayrıntı penceresi. Veri: integrations.ts */
+/* Entegrasyonlar: eşleştirme onayı, kurulum programı, bağlı programlar, aranabilir katalog, ayrıntı penceresi, MCP.
+   Veri: integrations.ts. Logolar: LogoTile (dosyası yoksa harf simgesi). */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Cable, Download, FolderDown, KeyRound, MonitorDown, Search, Trash2, X } from 'lucide-react';
 import { api, ApiError, type Device, type Me } from './api';
-import {
-  ALL_ENTRIES, CATALOG, HOST_LABEL, SETUP_URL, STATUS_LABEL, matches, monoHue, monogram,
-  type Entry,
-} from './integrations';
+import { hostLabel, isOnline } from './hosts';
+import { ALL_ENTRIES, CATALOG, SETUP_URL, STATUS_LABEL, matches, type Entry } from './integrations';
+import { LogoTile } from './LogoTile';
 import { McpSetup } from './McpSetup';
 import { OnshapeConnect, useOnshapeLink, type OnshapeLink } from './OnshapePanel';
-
-const SITE_URL = ((import.meta.env.VITE_SITE_URL as string | undefined) ?? 'http://localhost:8124').replace(/\/$/, '');
-const ONLINE_MS = 90_000;
-const isOnline = (d: Device) => d.online ?? (d.last_seen ? Date.now() - new Date(d.last_seen).getTime() < ONLINE_MS : false);
+import { SITE_URL } from './Login';
+import { PageHeader } from './ui';
+import './integrations.css';
 
 type ConnectInfo = { host: string; name: string; expires_at: string };
 type Votes = { mine: string[]; counts: Record<string, number> };
+
+const TRADEMARK = 'Ürün adları ve logolar sahiplerinin ticari markalarıdır; yalnızca uyumluluğu belirtmek için kullanılır, ortaklık veya onay anlamına gelmez.';
+
+/** Katalog girdisinin karosu: özel bağlantılarda kendi simgemiz, diğerlerinde uygulama logosu. */
+function EntryTile({ entry, size = 40 }: { entry: Entry; size?: 40 | 48 }) {
+  const icon = entry.special === 'mcp' ? <Cable /> : entry.special === 'apikeys' ? <KeyRound /> : undefined;
+  return <LogoTile id={entry.id} name={entry.name} size={size} icon={icon} />;
+}
 
 function ConnectConfirm({ code, onDone }: { code: string; onDone: () => void }) {
   const [info, setInfo] = useState<ConnectInfo | null>(null);
@@ -36,43 +44,32 @@ function ConnectConfirm({ code, onDone }: { code: string; onDone: () => void }) 
     try { await api('/v1/connect/approve', { method: 'POST', json: { user_code: code } }); setState('done'); onDone(); }
     catch (e) { setErr((e as Error).message); setState('ready'); }
   };
-  const label = info ? (HOST_LABEL[info.host as keyof typeof HOST_LABEL] ?? info.host) : '';
   const open = state === 'ready' || state === 'busy';
   return (
-    <section className="c-box c-confirm">
-      {state === 'loading' && <p className="c-dim">Kod doğrulanıyor…</p>}
-      {state === 'done' && <div className="c-note ok">Bağlandı ✓ — programına dönebilirsin.</div>}
-      {state === 'cancelled' && <p className="c-dim">Bağlantı iptal edildi. Hiçbir şey bağlanmadı.</p>}
+    <section className="c-card c-confirm" aria-live="polite">
+      {state === 'loading' && <p className="c-muted">Kod doğrulanıyor…</p>}
+      {state === 'done' && <div className="c-note ok">Bağlandı. Programına dönebilirsin.</div>}
+      {state === 'cancelled' && <p className="c-muted">Bağlantı iptal edildi. Hiçbir şey bağlanmadı.</p>}
       {open && info && !err && (
         <>
           <div className="c-confirm-app">
-            <span className={`c-host ${info.host}`}>{label}</span>
-            <b>{info.name}</b>
+            <LogoTile id={info.host} name={hostLabel(info.host)} icon={info.host === 'other' ? <FolderDown /> : undefined} />
+            <div>
+              <h2>Bu bilgisayar hesabına bağlansın mı?</h2>
+              <p className="c-muted">{hostLabel(info.host)} · <b>{info.name}</b></p>
+            </div>
           </div>
-          <h3>Bu bilgisayar hesabına bağlansın mı?</h3>
           <p className="c-fine">Kod <span className="c-mono">{code}</span>. Yalnızca kendi kurduğun programı bağla.</p>
           <div className="c-inline">
-            <button className="c-btn primary" disabled={state === 'busy'} onClick={approve}>Bağla</button>
-            <button className="c-btn" disabled={state === 'busy'} onClick={() => setState('cancelled')}>İptal</button>
+            <button type="button" className="c-btn primary" disabled={state === 'busy'} onClick={approve}>Bağla</button>
+            <button type="button" className="c-btn" disabled={state === 'busy'} onClick={() => setState('cancelled')}>İptal</button>
           </div>
         </>
       )}
-      {open && err && <div className="c-note">{err}</div>}
+      {open && err && <div className="c-error" role="alert">{err}</div>}
     </section>
   );
 }
-
-function Tile({ entry, size = 40 }: { entry: Entry; size?: number }) {
-  const h = monoHue(entry.id);
-  return (
-    <span
-      className="c-tile" aria-hidden="true"
-      style={{ width: size, height: size, fontSize: size * 0.38, background: `hsl(${h} 45% 22%)`, color: `hsl(${h} 80% 78%)`, borderColor: `hsl(${h} 40% 34%)` }}
-    >{monogram(entry.name)}</span>
-  );
-}
-
-const Dot = ({ on }: { on: boolean }) => <i className={`c-dot${on ? ' on' : ''}`} />;
 
 interface ModalProps {
   entry: Entry;
@@ -96,7 +93,7 @@ function EntryModal({ entry, devices, votes, onshape, onOnshapeChanged, onVote, 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { e.preventDefault(); onClose(); return; }
       if (e.key !== 'Tab' || !ref.current) return;
-      const f = Array.from(ref.current.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), summary, [tabindex="0"]'));
+      const f = Array.from(ref.current.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), summary, [tabindex="0"]'));
       if (!f.length) return;
       const first = f[0], last = f[f.length - 1];
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
@@ -115,24 +112,27 @@ function EntryModal({ entry, devices, votes, onshape, onOnshapeChanged, onVote, 
     try { await onVote(entry.id); } catch (e) { setErr((e as Error).message); }
     setBusy(false);
   };
+  const installer = (
+    <a className="c-btn primary" href={SETUP_URL}><Download aria-hidden="true" />Windows kurulum programını indir</a>
+  );
 
   return (
     <div className="c-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="c-modal" role="dialog" aria-modal="true" aria-labelledby="c-modal-title" ref={ref}>
-        <button ref={closeRef} className="c-x c-modal-x" aria-label="Kapat" onClick={onClose}>×</button>
-        <div className="c-modal-head">
-          <Tile entry={entry} size={48} />
+      <div className="c-dialog" role="dialog" aria-modal="true" aria-labelledby="c-modal-title" ref={ref}>
+        <button ref={closeRef} type="button" className="c-icon-btn c-dialog-x" aria-label="Kapat" onClick={onClose}><X /></button>
+        <div className="c-dialog-head">
+          <EntryTile entry={entry} size={48} />
           <div>
             <h2 id="c-modal-title">{entry.name}</h2>
-            <span className={`c-st ${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
+            <span className={`c-pill ${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
           </div>
         </div>
-        <p className="c-modal-desc">{entry.desc}</p>
+        <p>{entry.desc}</p>
 
         {entry.host && (
-          <p className="c-status c-modal-conn">
-            Bağlantı: <Dot on={online} />
-            <b>{linked.length ? (online ? 'Bağlı' : 'Bağlı, çevrimdışı') : 'Bağlı değil'}</b>
+          <p className="c-status">
+            <i className={`c-dot${online ? ' on' : ''}`} />
+            {linked.length ? (online ? 'Bağlı' : 'Bağlı, çevrimdışı') : 'Bağlı değil'}
           </p>
         )}
 
@@ -149,54 +149,56 @@ function EntryModal({ entry, devices, votes, onshape, onOnshapeChanged, onVote, 
 
         {entry.host && entry.status !== 'folder' && (
           <>
-            <ol className="c-steps">
-              <li>Kurulum programını indir</li>
-              <li>Programını seç ({entry.name}), Kur'a bas</li>
-              <li>Bağla'ya bas, tarayıcıda onayla</li>
+            <ol className="c-howto">
+              <li>Kurulum programını indir.</li>
+              <li>Programını seç ({entry.name}), Kur'a bas.</li>
+              <li>Bağla'ya bas, tarayıcıda onayla.</li>
             </ol>
-            <a className="c-btn primary c-big" href={SETUP_URL}>Windows kurulum programını indir</a>
+            <div>{installer}</div>
           </>
         )}
 
         {entry.status === 'folder' && (
           <>
-            <p className="c-modal-sub">
+            <p className="c-muted">
               {entry.name} için doğrudan bir eklenti yok. AICADBridge modeli STEP dosyası olarak bir klasöre bırakır; sen de programında içe aktarırsın.
             </p>
-            <ol className="c-steps">
-              <li>Kurulum programını indir</li>
-              <li>Kur ekranında <b>STEP klasörü</b> seçeneğini seç</li>
-              <li>Bağla'ya bas, tarayıcıda onayla</li>
-              <li>Gönderdiğin model klasöre düşer; {entry.name}'da İçe aktar ile aç</li>
+            <ol className="c-howto">
+              <li>Kurulum programını indir.</li>
+              <li>Kur ekranında <b>STEP klasörü</b> seçeneğini seç.</li>
+              <li>Bağla'ya bas, tarayıcıda onayla.</li>
+              <li>Gönderdiğin model klasöre düşer; {entry.name}'da İçe aktar ile aç.</li>
             </ol>
-            <a className="c-btn primary c-big" href={SETUP_URL}>Windows kurulum programını indir</a>
+            <div>{installer}</div>
           </>
         )}
 
         {entry.id === 'fusion' && (
-          <details className="c-manual">
+          <details className="c-details">
             <summary>Bulamıyor musun?</summary>
-            <p className="c-dim">Fusion'da Shift+S → Eklentiler → AICADBridgeLink → Çalıştır.</p>
+            <p className="c-muted">Fusion'da Shift+S → Eklentiler → AICADBridgeLink → Çalıştır.</p>
           </details>
         )}
 
         {entry.manual && (
-          <details className="c-manual">
+          <details className="c-details">
             <summary>Elle kurulum</summary>
-            <p className="c-dim">{entry.manual.how}</p>
-            <a className="c-btn" href={`${SITE_URL}/downloads/${entry.manual.file}`}>Zip'i indir</a>
+            <p className="c-muted">{entry.manual.how}</p>
+            <div><a className="c-btn sm" href={`${SITE_URL}/downloads/${entry.manual.file}`}><Download aria-hidden="true" />Zip'i indir</a></div>
           </details>
         )}
 
         {entry.status === 'soon' && (
-          <div className="c-vote">
-            <p className="c-dim">Bu bağlantı henüz hazır değil. İstiyorsan haber ver, sırayı buna göre belirleyelim.</p>
-            {mine
-              ? <div className="c-note ok" role="status">Talebin alındı ✓</div>
-              : <button className="c-btn primary" disabled={busy || !votes} onClick={vote}>İstiyorum</button>}
-            {total > 0 && <p className="c-fine" role="status">{total} kişi istiyor</p>}
+          <div className="c-stack">
+            <p className="c-muted">Bu bağlantı henüz hazır değil. İstiyorsan haber ver, sırayı buna göre belirleyelim.</p>
+            <div className="c-inline">
+              {mine
+                ? <span className="c-pill ready" role="status">Talebin alındı</span>
+                : <button type="button" className="c-btn primary" disabled={busy || !votes} onClick={vote}>İstiyorum</button>}
+              {total > 0 && <span className="c-fine" role="status">{total} kişi istiyor</span>}
+            </div>
             {!votes && !mine && <p className="c-fine">Talep servisine şu an ulaşılamıyor.</p>}
-            {err && <div className="c-error">{err}</div>}
+            {err && <div className="c-error" role="alert">{err}</div>}
           </div>
         )}
       </div>
@@ -204,7 +206,9 @@ function EntryModal({ entry, devices, votes, onshape, onOnshapeChanged, onVote, 
   );
 }
 
-export function Integrations({ devices, me, query, onChanged }: { devices: Device[]; me: Me | null; query: URLSearchParams; onChanged: () => void }) {
+export function Integrations({ devices, me, query, anchor, onChanged }: {
+  devices: Device[]; me: Me | null; query: URLSearchParams; anchor: string | null; onChanged: () => void;
+}) {
   const urlCode = query.get('code') ?? '';
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
@@ -215,14 +219,26 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
   const [hasKeys, setHasKeys] = useState(false);
   const { link: onshape, refresh: refreshOnshape } = useOnshapeLink();
 
+  // Cihaz durumu yalnız bu sayfa açıkken ve sekme görünürken 20 sn'de bir yenilenir; sekmeye dönünce hemen yenilenir.
   useEffect(() => {
-    const t = window.setInterval(onChanged, 20_000);
-    return () => window.clearInterval(t);
+    let t: number | undefined;
+    const start = () => { if (t === undefined) t = window.setInterval(onChanged, 20_000); };
+    const stop = () => { window.clearInterval(t); t = undefined; };
+    const onVis = () => { if (document.hidden) stop(); else { onChanged(); start(); } };
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVis);
+    return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
   }, [onChanged]);
   useEffect(() => {
     api<Votes>('/v1/integrations/requests').then(setVotes).catch(() => setVotes(null));
     api<unknown[]>('/v1/api-keys').then((k) => setHasKeys(k.length > 0)).catch(() => undefined);
   }, []);
+
+  const scrollToMcp = useCallback(() => {
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    document.getElementById('mcp')?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+  }, []);
+  useEffect(() => { if (anchor === 'mcp') scrollToMcp(); }, [anchor, scrollToMcp]);
 
   const approve = async (e: React.FormEvent) => {
     e.preventDefault(); setMsg(null);
@@ -246,13 +262,7 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
     [hasKeys, hostState, onshape],
   );
 
-  const pick = (e: Entry) => {
-    if (e.special) {
-      document.getElementById('mcp')?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
-      return;
-    }
-    setOpen(e);
-  };
+  const pick = (e: Entry) => { if (e.special) scrollToMcp(); else setOpen(e); };
 
   const sections = useMemo(() => CATALOG
     .map((c) => ({ ...c, entries: c.entries.filter((e) => matches(e, c.title, q) && (filter === 'all' || isConnected(e))) }))
@@ -261,73 +271,88 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
 
   return (
     <div className="c-page">
-      <h1>Entegrasyonlar</h1>
-      <p className="c-dim">Program, bu hesaba yalnızca dışarı doğru HTTPS ile bağlanır; bilgisayarında port açılmaz. Gönderdiğin model programda yeni bir parça olarak açılır.</p>
+      <PageHeader title="Entegrasyonlar"
+        desc="Program bu hesaba yalnız dışarı doğru HTTPS ile bağlanır; bilgisayarında port açılmaz. Gönderdiğin model programda yeni parça olarak açılır." />
 
       {urlCode && <ConnectConfirm key={urlCode} code={urlCode} onDone={onChanged} />}
 
-      <section className="c-banner">
-        <div>
-          <h3>Windows kurulum programı</h3>
-          <p>Tek programı indir, bilgisayarındaki CAD programlarını seç, Kur'a ve ardından Bağla'ya bas. Elle zip açmana gerek kalmaz.</p>
+      <section className="c-card c-installer" aria-labelledby="c-installer-h">
+        <span className="c-tile" aria-hidden="true"><MonitorDown /></span>
+        <div className="c-installer-text">
+          <h2 id="c-installer-h">Windows kurulum programı</h2>
+          <p>Tek programla CAD programlarını seç, kur ve bağla; zip açmana gerek yok.</p>
         </div>
-        <a className="c-btn primary c-big" href={SETUP_URL}>İndir (.exe)</a>
+        <a className="c-btn" href={SETUP_URL}><Download aria-hidden="true" />İndir</a>
       </section>
 
-      <section className="c-box" aria-labelledby="c-linked-h">
-        <h3 id="c-linked-h">Bağlı programlar</h3>
-        <ul className="c-list">
-          {devices.map((d) => {
-            const on = isOnline(d);
-            return (
-              <li key={d.id}>
-                <span className={`c-host ${d.host}`}>{HOST_LABEL[d.host] ?? d.host}</span>
-                <span>{d.name}</span>
-                <span className="c-dim c-mono c-status"><Dot on={on} />{on ? 'Bağlı' : `Çevrimdışı · ${d.last_seen ? `son görülme ${new Date(d.last_seen).toLocaleString('tr-TR')}` : 'henüz bağlanmadı'}`}</span>
-                <button className="c-x" title="Bağlantıyı kaldır" aria-label={`${d.name} bağlantısını kaldır`} onClick={async () => { await api(`/v1/devices/${d.id}`, { method: 'DELETE' }); onChanged(); }}>×</button>
-              </li>
-            );
-          })}
-          {!devices.length && <li className="c-dim">Bağlı program yok.</li>}
-        </ul>
+      <section className="c-section" aria-labelledby="c-linked-h">
+        <div className="c-section-head">
+          <h2 id="c-linked-h" className="c-h2">Bağlı programlar</h2>
+          {me?.plan === 'free' && <span className="c-fine">Ücretsiz planda 1 program bağlanabilir.</span>}
+        </div>
+        <div className="c-card flush">
+          <ul className="c-rows">
+            {devices.map((d) => {
+              const on = isOnline(d);
+              return (
+                <li key={d.id} className="c-row">
+                  <LogoTile id={d.host} name={hostLabel(d.host)} size={32} icon={d.host === 'other' ? <FolderDown /> : undefined} />
+                  <span className="c-row-main">
+                    <span className="c-row-title">{d.name}</span>
+                    <span className="c-row-sub c-status-line">
+                      <i className={`c-dot${on ? ' on' : ''}`} />
+                      <span>{hostLabel(d.host)} · {on ? 'Bağlı' : d.last_seen ? `çevrimdışı, son görülme ${new Date(d.last_seen).toLocaleString('tr-TR')}` : 'henüz bağlanmadı'}</span>
+                    </span>
+                  </span>
+                  <button type="button" className="c-icon-btn danger" title="Bağlantıyı kaldır" aria-label={`${d.name} bağlantısını kaldır`}
+                    onClick={async () => { await api(`/v1/devices/${d.id}`, { method: 'DELETE' }); onChanged(); }}><Trash2 /></button>
+                </li>
+              );
+            })}
+            {!devices.length && <li className="c-row-empty">Henüz bağlı program yok. Kurulum programıyla ya da aşağıdan bir program seçerek bağla.</li>}
+          </ul>
+        </div>
         {!urlCode && (
-          <details className="c-manual">
+          <details className="c-details">
             <summary>Eşleştirme kodunu elle gir</summary>
             <form className="c-inline" onSubmit={approve}>
-              <input className="c-mono code" aria-label="Eşleştirme kodu" placeholder="ABCD-1234" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={9} />
+              <input className="c-code-input" name="pair-code" aria-label="Eşleştirme kodu" placeholder="ABCD-1234" value={code}
+                onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={9} autoComplete="off" spellCheck={false} />
               <button className="c-btn primary" disabled={code.replace('-', '').length < 8}>Bağla</button>
             </form>
-            {msg && <div className="c-note">{msg}</div>}
+            {msg && <div className="c-note" role="status">{msg}</div>}
           </details>
         )}
-        {me?.plan === 'free' && <p className="c-fine">Ücretsiz planda 1 program bağlanabilir.</p>}
       </section>
 
       <div className="c-toolbar">
-        <input className="c-search" type="search" aria-label="Entegrasyon ara" placeholder="Program veya hizmet ara…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <label className="c-search">
+          <Search aria-hidden="true" />
+          <input type="search" name="integration-search" aria-label="Entegrasyon ara" placeholder="Program veya hizmet ara" value={q} onChange={(e) => setQ(e.target.value)} />
+        </label>
         <div className="c-seg" role="group" aria-label="Filtre">
-          <button type="button" aria-pressed={filter === 'all'} className={filter === 'all' ? 'active' : ''} onClick={() => setFilter('all')}>Tümü</button>
-          <button type="button" aria-pressed={filter === 'connected'} className={filter === 'connected' ? 'active' : ''} onClick={() => setFilter('connected')}>Bağlı{connectedCount ? ` (${connectedCount})` : ''}</button>
+          <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Tümü</button>
+          <button type="button" aria-pressed={filter === 'connected'} onClick={() => setFilter('connected')}>Bağlı{connectedCount ? ` · ${connectedCount}` : ''}</button>
         </div>
       </div>
 
       {sections.map((c) => (
         <section key={c.id} className="c-cat" aria-labelledby={`c-cat-${c.id}`}>
-          <h2 id={`c-cat-${c.id}`}>{c.title}</h2>
+          <h2 id={`c-cat-${c.id}`} className="c-cat-title">{c.title}</h2>
           <div className="c-int-grid">
             {c.entries.map((e) => {
-              const st = hostState(e);
               const linked = isConnected(e);
+              const on = e.special || e.cloud ? true : hostState(e).online;
               return (
-                <button key={e.id} type="button" className="c-int-card" aria-haspopup={e.special ? undefined : 'dialog'} onClick={() => pick(e)}>
-                  <Tile entry={e} />
+                <button key={e.id} type="button" className="c-int" aria-haspopup={e.special ? undefined : 'dialog'} onClick={() => pick(e)}>
+                  <EntryTile entry={e} />
                   <span className="c-int-body">
-                    <span className="c-int-name">{e.name}</span>
-                    <span className="c-int-desc">{e.desc}</span>
-                    <span className="c-int-badges">
-                      <span className={`c-st ${e.status}`}>{STATUS_LABEL[e.status]}</span>
-                      {linked && <span className="c-st on"><Dot on={e.special || e.cloud ? true : st.online} />Bağlı</span>}
+                    <span className="c-int-top">
+                      <span className="c-int-name">{e.name}</span>
+                      <span className={`c-pill ${e.status}`}>{STATUS_LABEL[e.status]}</span>
+                      {linked && <span className="c-pill on"><i className={`c-dot${on ? ' on' : ''}`} />Bağlı</span>}
                     </span>
+                    <span className="c-int-desc" title={e.desc}>{e.desc}</span>
                   </span>
                 </button>
               );
@@ -336,12 +361,15 @@ export function Integrations({ devices, me, query, onChanged }: { devices: Devic
         </section>
       ))}
       {!sections.length && (
-        <p className="c-dim c-empty">
-          {filter === 'connected' && !q ? 'Henüz bağlı program yok. "Tümü"nden birini seçip kur.' : 'Eşleşen entegrasyon yok.'}
-        </p>
+        <div className="c-empty">
+          <p>{filter === 'connected' && !q ? 'Henüz bağlı program yok.' : 'Eşleşen entegrasyon yok.'}</p>
+          <button type="button" className="c-btn" onClick={() => { setFilter('all'); setQ(''); }}>Tümünü göster</button>
+        </div>
       )}
 
       <McpSetup />
+
+      <p className="c-tm">{TRADEMARK}</p>
 
       {open && <EntryModal entry={open} devices={devices} votes={votes} onshape={onshape} onOnshapeChanged={refreshOnshape} onVote={vote} onClose={close} />}
     </div>
