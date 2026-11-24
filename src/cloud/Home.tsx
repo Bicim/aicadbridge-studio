@@ -1,5 +1,6 @@
 /* Yeni görev: selamlama, yazma kutusu ve örnek istemler. */
 import { useState } from 'react';
+import { Sparkles } from 'lucide-react';
 import type { Me } from './api';
 import { Composer } from './Composer';
 import { displayName } from './ui';
@@ -14,9 +15,10 @@ export function Home({ me, onStart }: { me: Me | null; onStart: (p: string) => v
   return (
     <div className="c-home">
       <h1>{greet}{name ? `, ${name}` : ''}</h1>
+      <p className="c-home-sub">Parçayı ve ölçülerini yaz; parametrik katıyı biz kuralım.</p>
       <Composer me={me} busy={false} onSend={onStart} label="Yeni görev" placeholder="Ne tasarlayalım? Parçayı ve ölçülerini yaz…" initial={pick} />
       <div className="c-examples" aria-label="Örnek istemler">
-        {EXAMPLES.map((e) => <button key={e} type="button" className="c-chip" onClick={() => setPick(e)}>{e}</button>)}
+        {EXAMPLES.map((e) => <button key={e} type="button" className="c-chip" onClick={() => setPick(e)}><Sparkles aria-hidden="true" />{e}</button>)}
       </div>
     </div>
   );
