@@ -1,5 +1,5 @@
 /* Görev ekranı: dallanan mesaj ağacının etkin yolu, canlı adımlar, model kartı, parametreler, programa gönderme. */
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Check, ChevronDown, ChevronLeft, ChevronRight, Download, FileBox, FolderDown, Pencil, Plug, Plus, Send,
   SlidersHorizontal, TriangleAlert, X,
@@ -195,7 +195,7 @@ function ModelCard({ msg, devices, onshape, onUpdated, onMenuOpen }: {
             return (
               <div key={p.name} className="c-param">
                 <label htmlFor={rid}>{label}</label>
-                <input id={rid} type="range" min={min} max={max} step={step} value={v} onChange={(e) => setParam(p.name, Number(e.target.value))} />
+                <input id={rid} type="range" min={min} max={max} step={step} value={v} style={{ '--p': `${max > min ? ((v - min) / (max - min)) * 100 : 0}%` } as CSSProperties} onChange={(e) => setParam(p.name, Number(e.target.value))} />
                 <span className="c-param-num">
                   <input type="number" aria-label={`${label} değeri`} min={min} max={max} step={step} value={v}
                     onChange={(e) => setParam(p.name, Number(e.target.value))} />

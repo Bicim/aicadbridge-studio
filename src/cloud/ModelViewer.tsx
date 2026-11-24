@@ -15,9 +15,9 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
     const el = host.current;
     if (!el) return;
     setErr(null);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setClearColor(readViewerTheme(el).bg);
+    renderer.setClearColor(0, 0); // zemin gradyanı CSS'ten (.c-viewer)
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
@@ -51,10 +51,15 @@ export function ModelViewer({ url, height = 320 }: { url: string; height?: numbe
     let disposed = false;
     let grid: THREE.GridHelper | null = null;
     let buildGrid = () => undefined as void;
-    // Sistem teması değişince zemin ve ızgara renkleri token'lardan yeniden okunur.
-    const offScheme = onSchemeChange(() => { renderer.setClearColor(readViewerTheme(el).bg); buildGrid(); invalidate(); });
-    const material = new THREE.MeshStandardMaterial({ color: 0x2f7fb8, metalness: 0.25, roughness: 0.45 });
-    const edgeMat = new THREE.LineBasicMaterial({ color: 0x0b2236, transparent: true, opacity: 0.55 });
+    const t0 = readViewerTheme(el);
+    const material = new THREE.MeshStandardMaterial({ color: t0.model, metalness: 0.35, roughness: 0.42 });
+    const edgeMat = new THREE.LineBasicMaterial({ color: t0.edge, transparent: true, opacity: 0.6 });
+    // Tema (sistem ya da Ayarlar > Görünüm) değişince model, kenar ve ızgara renkleri token'lardan yeniden okunur.
+    const offScheme = onSchemeChange(() => {
+      const t = readViewerTheme(el);
+      material.color.set(t.model); edgeMat.color.set(t.edge);
+      buildGrid(); invalidate();
+    });
     new GLTFLoader().load(url, (gltf) => {
       if (disposed) return;
       const root = gltf.scene;
