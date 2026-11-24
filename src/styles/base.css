@@ -86,6 +86,8 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 input, select, textarea { font: inherit; color: inherit; }
 a { color: inherit; }
 :focus-visible { outline: none; box-shadow: var(--ring); }
+/* Windows yüksek karşıtlık: box-shadow çizilmez; odak halkası gerçek outline olsun. */
+@media (forced-colors: active) { :focus-visible { outline: 2px solid Highlight; outline-offset: 2px; } }
 ::selection { background: var(--accent-soft); }
 .u-grid {
   background-image: linear-gradient(var(--grid-line) 1px, transparent 1px), linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
