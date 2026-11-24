@@ -7,7 +7,7 @@
    tarayıcı erişimi başlığı kullanılır).
    ============================================================ */
 
-export type ProviderId = 'openai' | 'anthropic' | 'google' | 'openrouter' | 'custom';
+export type ProviderId = 'openai' | 'anthropic' | 'google' | 'openrouter' | 'evren' | 'custom';
 
 export interface AiConfig {
   provider: ProviderId;
@@ -39,6 +39,12 @@ export const PROVIDERS: Record<ProviderId, { label: string; needsBaseUrl: boolea
   anthropic: { label: 'Anthropic (Claude)', needsBaseUrl: false, keyHint: 'sk-ant-...' },
   google: { label: 'Google (Gemini)', needsBaseUrl: false, keyHint: 'AIza...' },
   openrouter: { label: 'OpenRouter', needsBaseUrl: false, keyHint: 'sk-or-...' },
+  evren: {
+    label: 'EVREN (SSYZ)',
+    needsBaseUrl: false,
+    defaultBaseUrl: 'https://evren-llmapi.ssyz.org.tr/v1',
+    keyHint: 'evren_llm_...'
+  },
   custom: {
     label: 'OpenAI-uyumlu (DeepSeek, Ollama, LM Studio...)',
     needsBaseUrl: true,
@@ -49,6 +55,7 @@ export const PROVIDERS: Record<ProviderId, { label: string; needsBaseUrl: boolea
 
 function openAiBase(cfg: AiConfig): string {
   if (cfg.provider === 'openrouter') return 'https://openrouter.ai/api/v1';
+  if (cfg.provider === 'evren') return 'https://evren-llmapi.ssyz.org.tr/v1';
   if (cfg.provider === 'custom') return (cfg.baseUrl || PROVIDERS.custom.defaultBaseUrl!).replace(/\/$/, '');
   return 'https://api.openai.com/v1';
 }

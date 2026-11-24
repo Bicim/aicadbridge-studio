@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { BrandMark } from '../BrandMark';
 import { api, ApiError, generate, loadByok, type Device, type IRParam, type Me, type Msg } from './api';
-import { Composer } from './Composer';
+import { Composer, type SendOptions } from './Composer';
 import { hostLabel, isOnline } from './hosts';
 import { LogoTile } from './LogoTile';
 import { OnshapeSend, useOnshapeLink, type OnshapeLink } from './OnshapePanel';
@@ -349,7 +349,7 @@ function Steps({ steps, live }: { steps: { text: string; detail?: string[] }[]; 
 }
 
 export function TaskView({ taskId, me, devices, initialPrompt, onConsumedPrompt, onChanged, refreshMe, refreshDevices }: {
-  taskId: string; me: Me | null; devices: Device[]; initialPrompt: string | null;
+  taskId: string; me: Me | null; devices: Device[]; initialPrompt: { prompt: string; model?: string; images?: string[] } | null;
   onConsumedPrompt: () => void; onChanged: () => void; refreshMe: () => void; refreshDevices: () => void;
 }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -382,14 +382,21 @@ export function TaskView({ taskId, me, devices, initialPrompt, onConsumedPrompt,
     end.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
   }, [path.length, live?.steps.length]);
 
-  const send = useCallback(async (prompt: string, parentId?: string | null) => {
+  const send = useCallback(async (prompt: string, parentId?: string | null, opts?: SendOptions) => {
     setBusy(true); setErr(null); setEdit(null);
     setLive({ prompt, steps: [] });
     const ctl = new AbortController(); abort.current = ctl;
     const byok = loadByok();
-    const llm = byok.enabled && byok.api_key ? { provider: byok.provider, model: byok.model, api_key: byok.api_key, base_url: byok.base_url } : undefined;
+    const byokActive = !!(byok.enabled && byok.api_key);
+    const llm = byokActive ? { provider: byok.provider, model: byok.model, api_key: byok.api_key, base_url: byok.base_url } : undefined;
     try {
-      await generate(taskId, { prompt, parent_id: parentId === undefined ? leaf : parentId, llm }, (ev) => {
+      await generate(taskId, {
+        prompt,
+        parent_id: parentId === undefined ? leaf : parentId,
+        model: byokActive ? undefined : opts?.model,
+        images: opts?.images?.length ? opts.images : undefined,
+        llm,
+      }, (ev) => {
         if (ev.type === 'start') setMsgs((m) => [...m, ev.user_message]);
         if (ev.type === 'step') setLive((l) => l && { ...l, steps: [...l.steps, { text: ev.text, detail: ev.detail }] });
         if (ev.type === 'done') {
@@ -411,7 +418,7 @@ export function TaskView({ taskId, me, devices, initialPrompt, onConsumedPrompt,
     if (!initialPrompt || startedTasks.has(taskId)) return;
     startedTasks.add(taskId);
     onConsumedPrompt();
-    void send(initialPrompt, null);
+    void send(initialPrompt.prompt, null, { model: initialPrompt.model, images: initialPrompt.images });
   }, [initialPrompt, taskId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updated = (m: Msg) => setMsgs((all) => all.map((x) => (x.id === m.id ? m : x)));
@@ -476,7 +483,7 @@ export function TaskView({ taskId, me, devices, initialPrompt, onConsumedPrompt,
           <Composer me={me} busy={busy} onStop={() => abort.current?.abort()} label="Değişiklik iste"
             placeholder="Değişiklik iste: 'Kenarları 2 mm yuvarlat', 'Delikleri 8 adet yap'…"
             initial={edit?.text ?? ''}
-            onSend={(t) => (edit ? send(t, edit.parent) : send(t))} />
+            onSend={(t, opts) => (edit ? send(t, edit.parent, opts) : send(t, undefined, opts))} />
         </div>
       </div>
       {split && (selected
