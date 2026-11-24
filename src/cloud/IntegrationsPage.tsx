@@ -1,21 +1,30 @@
 /* Entegrasyonlar: eşleştirme onayı, kurulum programı, bağlı programlar, aranabilir katalog, ayrıntı penceresi, MCP.
    Veri: integrations.ts. Logolar: LogoTile (dosyası yoksa harf simgesi). */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Cable, Download, FolderDown, KeyRound, MonitorDown, Search, Trash2, X } from 'lucide-react';
+import { Cable, Download, FolderDown, KeyRound, Search, Trash2, X } from 'lucide-react';
 import { api, ApiError, type Device, type Me } from './api';
 import { hostLabel, isOnline } from './hosts';
-import { ALL_ENTRIES, CATALOG, SETUP_URL, STATUS_LABEL, matches, type Entry } from './integrations';
+import { CATALOG, SETUP_URL, STATUS_LABEL, matches, type Entry, type Status } from './integrations';
 import { LogoTile } from './LogoTile';
 import { McpSetup } from './McpSetup';
 import { OnshapeConnect, useOnshapeLink, type OnshapeLink } from './OnshapePanel';
 import { SITE_URL } from './Login';
-import { PageHeader } from './ui';
+import { Empty, PageHeader } from './ui';
 import './integrations.css';
 
 type ConnectInfo = { host: string; name: string; expires_at: string };
 type Votes = { mine: string[]; counts: Record<string, number> };
 
 const TRADEMARK = 'Ürün adları ve logolar sahiplerinin ticari markalarıdır; yalnızca uyumluluğu belirtmek için kullanılır, ortaklık veya onay anlamına gelmez.';
+
+/** "2 sa önce" biçimi (Intl.RelativeTimeFormat, Türkçe). */
+const rtf = new Intl.RelativeTimeFormat('tr-TR', { numeric: 'always', style: 'narrow' });
+function ago(iso: string): string {
+  const m = Math.round((new Date(iso).getTime() - Date.now()) / 60000);
+  if (Math.abs(m) < 60) return rtf.format(m, 'minute');
+  if (Math.abs(m) < 1440) return rtf.format(Math.round(m / 60), 'hour');
+  return rtf.format(Math.round(m / 1440), 'day');
+}
 
 /** Katalog girdisinin karosu: özel bağlantılarda kendi simgemiz, diğerlerinde uygulama logosu. */
 function EntryTile({ entry, size = 40 }: { entry: Entry; size?: 40 | 48 }) {
@@ -46,23 +55,24 @@ function ConnectConfirm({ code, onDone }: { code: string; onDone: () => void }) 
   };
   const open = state === 'ready' || state === 'busy';
   return (
-    <section className="c-card c-confirm" aria-live="polite">
+    <section className="c-card hl c-confirm" aria-live="polite">
       {state === 'loading' && <p className="c-muted">Kod doğrulanıyor…</p>}
       {state === 'done' && <div className="c-note ok">Bağlandı. Programına dönebilirsin.</div>}
       {state === 'cancelled' && <p className="c-muted">Bağlantı iptal edildi. Hiçbir şey bağlanmadı.</p>}
       {open && info && !err && (
         <>
           <div className="c-confirm-app">
-            <LogoTile id={info.host} name={hostLabel(info.host)} icon={info.host === 'other' ? <FolderDown /> : undefined} />
+            <LogoTile id={info.host} name={hostLabel(info.host)} size={48} icon={info.host === 'other' ? <FolderDown /> : undefined} />
             <div>
               <h2>Bu bilgisayar hesabına bağlansın mı?</h2>
               <p className="c-muted">{hostLabel(info.host)} · <b>{info.name}</b></p>
             </div>
           </div>
-          <p className="c-fine">Kod <span className="c-mono">{code}</span>. Yalnızca kendi kurduğun programı bağla.</p>
+          <div className="c-pair-code" aria-label="Eşleştirme kodu">{code}</div>
+          <p className="c-fine">Kodun programdaki kodla aynı olduğundan emin ol. Yalnızca kendi kurduğun programı bağla.</p>
           <div className="c-inline">
-            <button type="button" className="c-btn primary" disabled={state === 'busy'} onClick={approve}>Bağla</button>
-            <button type="button" className="c-btn" disabled={state === 'busy'} onClick={() => setState('cancelled')}>İptal</button>
+            <button type="button" className="c-btn primary" disabled={state === 'busy'} onClick={approve}>Onayla</button>
+            <button type="button" className="c-btn ghost" disabled={state === 'busy'} onClick={() => setState('cancelled')}>Vazgeç</button>
           </div>
         </>
       )}
@@ -119,14 +129,15 @@ function EntryModal({ entry, devices, votes, onshape, onOnshapeChanged, onVote, 
   return (
     <div className="c-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="c-dialog" role="dialog" aria-modal="true" aria-labelledby="c-modal-title" ref={ref}>
-        <button ref={closeRef} type="button" className="c-icon-btn c-dialog-x" aria-label="Kapat" onClick={onClose}><X /></button>
         <div className="c-dialog-head">
           <EntryTile entry={entry} size={48} />
           <div>
             <h2 id="c-modal-title">{entry.name}</h2>
             <span className={`c-pill ${entry.status}`}>{STATUS_LABEL[entry.status]}</span>
           </div>
+          <button ref={closeRef} type="button" className="c-icon-btn" aria-label="Kapat" onClick={onClose}><X /></button>
         </div>
+        <div className="c-dialog-body">
         <p>{entry.desc}</p>
 
         {entry.host && (
@@ -201,6 +212,7 @@ function EntryModal({ entry, devices, votes, onshape, onOnshapeChanged, onVote, 
             {err && <div className="c-error" role="alert">{err}</div>}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
@@ -213,7 +225,8 @@ export function Integrations({ devices, me, query, anchor, onChanged }: {
   const [code, setCode] = useState('');
   const [msg, setMsg] = useState<string | null>(null);
   const [q, setQ] = useState('');
-  const [filter, setFilter] = useState<'all' | 'connected'>('all');
+  const [filter, setFilter] = useState<'all' | Exclude<Status, 'soon'>>('all');
+  const [codeOpen, setCodeOpen] = useState(false);
   const [open, setOpen] = useState<Entry | null>(null);
   const [votes, setVotes] = useState<Votes | null>(null);
   const [hasKeys, setHasKeys] = useState(false);
@@ -265,9 +278,8 @@ export function Integrations({ devices, me, query, anchor, onChanged }: {
   const pick = (e: Entry) => { if (e.special) scrollToMcp(); else setOpen(e); };
 
   const sections = useMemo(() => CATALOG
-    .map((c) => ({ ...c, entries: c.entries.filter((e) => matches(e, c.title, q) && (filter === 'all' || isConnected(e))) }))
-    .filter((c) => c.entries.length), [q, filter, isConnected]);
-  const connectedCount = ALL_ENTRIES.filter(isConnected).length;
+    .map((c) => ({ ...c, entries: c.entries.filter((e) => matches(e, c.title, q) && (filter === 'all' || e.status === filter)) }))
+    .filter((c) => c.entries.length), [q, filter]);
 
   return (
     <div className="c-page">
@@ -276,13 +288,30 @@ export function Integrations({ devices, me, query, anchor, onChanged }: {
 
       {urlCode && <ConnectConfirm key={urlCode} code={urlCode} onDone={onChanged} />}
 
-      <section className="c-card c-installer" aria-labelledby="c-installer-h">
-        <span className="c-tile" aria-hidden="true"><MonitorDown /></span>
+      <section className="c-card hl c-installer" aria-labelledby="c-installer-h">
         <div className="c-installer-text">
           <h2 id="c-installer-h">Windows kurulum programı</h2>
           <p>Tek programla CAD programlarını seç, kur ve bağla; zip açmana gerek yok.</p>
+          <div className="c-installer-actions">
+            <a className="c-btn primary" href={SETUP_URL}><Download aria-hidden="true" />Kurulum programını indir</a>
+            {!urlCode && <button type="button" className="c-btn" aria-expanded={codeOpen} onClick={() => setCodeOpen(!codeOpen)}>Kodu elle gir</button>}
+          </div>
+          {codeOpen && !urlCode && (
+            <div className="c-installer-code c-stack">
+              <form className="c-inline" onSubmit={approve}>
+                <input className="c-code-input" name="pair-code" aria-label="Eşleştirme kodu" placeholder="ABCD-1234" value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={9} autoComplete="off" spellCheck={false} />
+                <button className="c-btn primary" disabled={code.replace('-', '').length < 8}>Bağla</button>
+              </form>
+              {msg && <div className="c-note" role="status">{msg}</div>}
+            </div>
+          )}
         </div>
-        <a className="c-btn" href={SETUP_URL}><Download aria-hidden="true" />İndir</a>
+        <div className="c-installer-tiles" aria-hidden="true">
+          <LogoTile id="fusion" name="Autodesk Fusion" size={48} />
+          <LogoTile id="blender" name="Blender" size={48} />
+          <LogoTile id="onshape" name="Onshape" size={48} />
+        </div>
       </section>
 
       <section className="c-section" aria-labelledby="c-linked-h">
@@ -290,7 +319,7 @@ export function Integrations({ devices, me, query, anchor, onChanged }: {
           <h2 id="c-linked-h" className="c-h2">Bağlı programlar</h2>
           {me?.plan === 'free' && <span className="c-fine">Ücretsiz planda 1 program bağlanabilir.</span>}
         </div>
-        <div className="c-card flush">
+        <div className="c-card flush c-devices">
           <ul className="c-rows">
             {devices.map((d) => {
               const on = isOnline(d);
@@ -300,8 +329,8 @@ export function Integrations({ devices, me, query, anchor, onChanged }: {
                   <span className="c-row-main">
                     <span className="c-row-title">{d.name}</span>
                     <span className="c-row-sub c-status-line">
-                      <i className={`c-dot${on ? ' on' : ''}`} />
-                      <span>{hostLabel(d.host)} · {on ? 'Bağlı' : d.last_seen ? `çevrimdışı, son görülme ${new Date(d.last_seen).toLocaleString('tr-TR')}` : 'henüz bağlanmadı'}</span>
+                      {on ? <span className="c-pill on"><i className="c-dot on" />Çevrimiçi</span> : null}
+                      <span>{hostLabel(d.host)}{on ? '' : d.last_seen ? ` · Son görülme ${ago(d.last_seen)}` : ' · henüz bağlanmadı'}</span>
                     </span>
                   </span>
                   <button type="button" className="c-icon-btn danger" title="Bağlantıyı kaldır" aria-label={`${d.name} bağlantısını kaldır`}
@@ -312,17 +341,6 @@ export function Integrations({ devices, me, query, anchor, onChanged }: {
             {!devices.length && <li className="c-row-empty">Henüz bağlı program yok. Kurulum programıyla ya da aşağıdan bir program seçerek bağla.</li>}
           </ul>
         </div>
-        {!urlCode && (
-          <details className="c-details">
-            <summary>Eşleştirme kodunu elle gir</summary>
-            <form className="c-inline" onSubmit={approve}>
-              <input className="c-code-input" name="pair-code" aria-label="Eşleştirme kodu" placeholder="ABCD-1234" value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())} maxLength={9} autoComplete="off" spellCheck={false} />
-              <button className="c-btn primary" disabled={code.replace('-', '').length < 8}>Bağla</button>
-            </form>
-            {msg && <div className="c-note" role="status">{msg}</div>}
-          </details>
-        )}
       </section>
 
       <div className="c-toolbar">
@@ -331,8 +349,9 @@ export function Integrations({ devices, me, query, anchor, onChanged }: {
           <input type="search" name="integration-search" aria-label="Entegrasyon ara" placeholder="Program veya hizmet ara" value={q} onChange={(e) => setQ(e.target.value)} />
         </label>
         <div className="c-seg" role="group" aria-label="Filtre">
-          <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Tümü</button>
-          <button type="button" aria-pressed={filter === 'connected'} onClick={() => setFilter('connected')}>Bağlı{connectedCount ? ` · ${connectedCount}` : ''}</button>
+          {([['all', 'Tümü'], ['ready', 'Hazır'], ['beta', 'Beta'], ['folder', 'STEP']] as const).map(([k, l]) => (
+            <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)}>{l}</button>
+          ))}
         </div>
       </div>
 
@@ -345,15 +364,14 @@ export function Integrations({ devices, me, query, anchor, onChanged }: {
               const on = e.special || e.cloud ? true : hostState(e).online;
               return (
                 <button key={e.id} type="button" className="c-int" aria-haspopup={e.special ? undefined : 'dialog'} onClick={() => pick(e)}>
-                  <EntryTile entry={e} />
-                  <span className="c-int-body">
-                    <span className="c-int-top">
-                      <span className="c-int-name">{e.name}</span>
-                      <span className={`c-pill ${e.status}`}>{STATUS_LABEL[e.status]}</span>
-                      {linked && <span className="c-pill on"><i className={`c-dot${on ? ' on' : ''}`} />Bağlı</span>}
-                    </span>
-                    <span className="c-int-desc" title={e.desc}>{e.desc}</span>
+                  <span className="c-int-top">
+                    <EntryTile entry={e} />
+                    <span className="c-int-name">{e.name}</span>
+                    {linked
+                      ? <span className="c-pill on"><i className={`c-dot${on ? ' on' : ''}`} />Bağlı</span>
+                      : <span className={`c-pill ${e.status}`}>{STATUS_LABEL[e.status]}</span>}
                   </span>
+                  <span className="c-int-desc" title={e.desc}>{e.desc}</span>
                 </button>
               );
             })}
@@ -361,9 +379,9 @@ export function Integrations({ devices, me, query, anchor, onChanged }: {
         </section>
       ))}
       {!sections.length && (
-        <div className="c-empty">
-          <p>{filter === 'connected' && !q ? 'Henüz bağlı program yok.' : 'Eşleşen entegrasyon yok.'}</p>
-          <button type="button" className="c-btn" onClick={() => { setFilter('all'); setQ(''); }}>Tümünü göster</button>
+        <div className="c-card">
+          <Empty icon={<Search />} title="Eşleşen entegrasyon yok" text="Aramayı ya da süzgeci değiştir."
+            action={<button type="button" className="c-btn" onClick={() => { setFilter('all'); setQ(''); }}>Tümünü göster</button>} />
         </div>
       )}
 
