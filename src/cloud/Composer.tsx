@@ -6,6 +6,13 @@ import { toast } from './ui';
 
 export interface SendOptions { model?: string; images?: string[] }
 
+const PROVIDER_LABEL: Record<string, string> = {
+  evren: 'EVREN (SSYZ)',
+  nvidia: 'NVIDIA NIM',
+  anthropic: 'Anthropic',
+  openai: 'OpenAI',
+};
+
 function fileToDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
@@ -183,6 +190,16 @@ export function Composer({ onSend, busy, onStop, me, placeholder, label, initial
 
   const canMic = !!me?.llm.features?.asr && typeof MediaRecorder !== 'undefined';
   const canOcr = !!me?.llm.features?.ocr;
+  const providerGroups = useMemo(() => {
+    const groups: { provider: string; items: typeof models }[] = [];
+    for (const m of models) {
+      const p = m.provider || me?.llm.provider || 'default';
+      const existing = groups.find((g) => g.provider === p);
+      if (existing) existing.items.push(m);
+      else groups.push({ provider: p, items: [m] });
+    }
+    return groups;
+  }, [models, me?.llm.provider]);
 
   return (
     <div className="c-composer">
@@ -204,7 +221,13 @@ export function Composer({ onSend, busy, onStop, me, placeholder, label, initial
       <div className="c-composer-bar">
         {!byokActive && models.length > 1 ? (
           <select className="c-composer-select" name="model" aria-label="Model" value={activeModel} onChange={(e) => onModelChange(e.target.value)}>
-            {models.map((m) => <option key={m.id} value={m.id}>{m.label}{m.hint ? ` · ${m.hint}` : ''}</option>)}
+            {providerGroups.length > 1
+              ? providerGroups.map((g) => (
+                <optgroup key={g.provider} label={PROVIDER_LABEL[g.provider] ?? g.provider}>
+                  {g.items.map((m) => <option key={m.id} value={m.id}>{m.label}{m.hint ? ` · ${m.hint}` : ''}</option>)}
+                </optgroup>
+              ))
+              : models.map((m) => <option key={m.id} value={m.id}>{m.label}{m.hint ? ` · ${m.hint}` : ''}</option>)}
           </select>
         ) : (
           <span className="c-composer-model" title={modelLabel}>{modelLabel}</span>
