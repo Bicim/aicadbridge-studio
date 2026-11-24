@@ -7,7 +7,7 @@
    tarayıcı erişimi başlığı kullanılır).
    ============================================================ */
 
-export type ProviderId = 'openai' | 'anthropic' | 'google' | 'openrouter' | 'evren' | 'custom';
+export type ProviderId = 'openai' | 'anthropic' | 'google' | 'openrouter' | 'evren' | 'nvidia' | 'custom';
 
 export interface AiConfig {
   provider: ProviderId;
@@ -45,6 +45,12 @@ export const PROVIDERS: Record<ProviderId, { label: string; needsBaseUrl: boolea
     defaultBaseUrl: 'https://evren-llmapi.ssyz.org.tr/v1',
     keyHint: 'evren_llm_...'
   },
+  nvidia: {
+    label: 'NVIDIA NIM',
+    needsBaseUrl: false,
+    defaultBaseUrl: 'https://integrate.api.nvidia.com/v1',
+    keyHint: 'nvapi-...'
+  },
   custom: {
     label: 'OpenAI-uyumlu (DeepSeek, Ollama, LM Studio...)',
     needsBaseUrl: true,
@@ -56,6 +62,7 @@ export const PROVIDERS: Record<ProviderId, { label: string; needsBaseUrl: boolea
 function openAiBase(cfg: AiConfig): string {
   if (cfg.provider === 'openrouter') return 'https://openrouter.ai/api/v1';
   if (cfg.provider === 'evren') return 'https://evren-llmapi.ssyz.org.tr/v1';
+  if (cfg.provider === 'nvidia') return 'https://integrate.api.nvidia.com/v1';
   if (cfg.provider === 'custom') return (cfg.baseUrl || PROVIDERS.custom.defaultBaseUrl!).replace(/\/$/, '');
   return 'https://api.openai.com/v1';
 }

@@ -334,11 +334,14 @@ export function Settings({ me }: { me: Me | null }) {
           <label className="c-field">Sağlayıcı
             <select name="byok-provider" value={s.provider} onChange={(e) => {
               const p = e.target.value;
-              const nextModel = p === 'evren' && (!s.model || s.model.startsWith('claude-')) ? 'deepseek-v4.1-flash' : s.model;
+              const isPreset = !s.model || s.model.startsWith('claude-') || s.model.startsWith('deepseek-v4') || s.model.startsWith('nvidia/');
+              const nextModel = p === 'evren' && isPreset ? 'deepseek-v4.1-flash'
+                : p === 'nvidia' && isPreset ? 'nvidia/nemotron-3-ultra-550b-a55b'
+                : s.model;
               set({ provider: p, model: nextModel });
             }}>
               <option value="anthropic">Anthropic</option><option value="openai">OpenAI</option><option value="google">Google Gemini</option>
-              <option value="openrouter">OpenRouter</option><option value="evren">EVREN (SSYZ)</option><option value="custom">OpenAI uyumlu (özel URL)</option>
+              <option value="openrouter">OpenRouter</option><option value="evren">EVREN (SSYZ)</option><option value="nvidia">NVIDIA NIM</option><option value="custom">OpenAI uyumlu (özel URL)</option>
             </select>
           </label>
           <label className="c-field">Model<input className="c-mono" name="byok-model" value={s.model} onChange={(e) => set({ model: e.target.value })} /></label>

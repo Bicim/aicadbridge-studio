@@ -33,7 +33,7 @@ function createAuth(url: string, key: string): GoTrueClient {
 export const auth: GoTrueClient | null = SB_URL && SB_KEY ? createAuth(SB_URL, SB_KEY) : null;
 
 export interface ServerModel {
-  id: string; label: string; hint?: string; vision?: boolean;
+  id: string; label: string; hint?: string; vision?: boolean; provider?: string;
 }
 export interface Me {
   id: string; email: string; name?: string; avatar_url?: string | null; provider?: string | null; plan: 'free' | 'pro' | 'team';
