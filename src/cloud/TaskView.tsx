@@ -296,12 +296,13 @@ function Bench({ msg, models, onPick, devices, onshape, onUpdated, onMenuOpen }:
           </div>
         </div>
         <div className="c-bench-dock-body">
-          <Warn issues={issues} />
           <OnshapeRow msg={msg} st={st} onshape={onshape} />
           {st.note && <div className="c-model-note" role="status">{st.note}</div>}
           {st.params.length > 0
             ? <div className="c-params"><ParamList msg={msg} st={st} /></div>
             : <p className="c-bench-none">Bu modelde ayarlanabilir parametre yok.</p>}
+          {/* Uyarı parametre listesinin ALTINDA: görününce/değişince kaydırıcılar kaymasın. */}
+          <Warn issues={issues} />
         </div>
       </div>
     </section>
