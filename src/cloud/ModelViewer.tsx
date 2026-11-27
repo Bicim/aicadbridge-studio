@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { onSchemeChange, readViewerTheme } from '../viewerTheme';
 
@@ -23,15 +24,28 @@ export function ModelViewer({ url, height, fit = 0, edges = true }: { url: strin
     setErr(null);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
     renderer.setClearColor(0, 0); // zemin gradyanı CSS'ten (.c-viewer)
     el.appendChild(renderer.domElement);
 
     const scene = new THREE.Scene();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envTex = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    scene.environment = envTex;
+    pmrem.dispose();
+
     const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 100000);
-    scene.add(new THREE.HemisphereLight(0xdfe9f3, 0x1a1c20, 1.1));
-    const key = new THREE.DirectionalLight(0xffffff, 1.6);
-    key.position.set(1, 2, 1.5);
+    scene.add(new THREE.HemisphereLight(0xeef5fc, 0x1a1e24, 0.85));
+    const key = new THREE.DirectionalLight(0xfffaf0, 1.45);
+    key.position.set(1.2, 2.2, 1.6);
     scene.add(key);
+    const fill = new THREE.DirectionalLight(0xd6e8ff, 0.55);
+    fill.position.set(-1.5, 0.8, -1.0);
+    scene.add(fill);
+    const rim = new THREE.DirectionalLight(0xffffff, 0.45);
+    rim.position.set(0.0, 1.4, -2.0);
+    scene.add(rim);
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
@@ -59,8 +73,9 @@ export function ModelViewer({ url, height, fit = 0, edges = true }: { url: strin
     let grid: THREE.GridHelper | null = null;
     let buildGrid = () => undefined as void;
     const t0 = readViewerTheme(el);
-    const material = new THREE.MeshStandardMaterial({ color: t0.model, metalness: 0.35, roughness: 0.42 });
-    const edgeMat = new THREE.LineBasicMaterial({ color: t0.edge, transparent: true, opacity: 0.6 });
+    const material = new THREE.MeshStandardMaterial({ color: t0.model, metalness: 0.4, roughness: 0.34, envMapIntensity: 0.8 });
+    const edgeMat = new THREE.LineBasicMaterial({ color: t0.edge, transparent: true, opacity: 0.52 });
+    const partMaterials: THREE.MeshStandardMaterial[] = [];
     // Tema (sistem ya da Ayarlar > Görünüm) değişince model, kenar ve ızgara renkleri token'lardan yeniden okunur.
     const offScheme = onSchemeChange(() => {
       const t = readViewerTheme(el);
@@ -76,7 +91,18 @@ export function ModelViewer({ url, height, fit = 0, edges = true }: { url: strin
       root.traverse((o) => {
         const m = o as THREE.Mesh;
         if (m.isMesh) {
-          m.material = material;
+          const orig = m.material as THREE.MeshStandardMaterial | undefined;
+          const col = orig?.color;
+          const hasCustomColor = !!col && (col.r < 0.98 || col.g < 0.98 || col.b < 0.98);
+          if (hasCustomColor && col) {
+            const pm = new THREE.MeshStandardMaterial({
+              color: col.clone(), metalness: 0.35, roughness: 0.36, envMapIntensity: 0.75,
+            });
+            partMaterials.push(pm);
+            m.material = pm;
+          } else {
+            m.material = material;
+          }
           const l = new THREE.LineSegments(new THREE.EdgesGeometry(m.geometry, 25), edgeMat);
           l.visible = edgesOn.current;
           lines.push(l);
@@ -120,6 +146,8 @@ export function ModelViewer({ url, height, fit = 0, edges = true }: { url: strin
         m.geometry?.dispose?.();
       });
       material.dispose(); edgeMat.dispose();
+      for (const pm of partMaterials) pm.dispose();
+      envTex.dispose();
       renderer.dispose();
       renderer.domElement.remove();
     };

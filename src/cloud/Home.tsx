@@ -5,7 +5,11 @@ import type { Me } from './api';
 import { Composer, type SendOptions } from './Composer';
 import { displayName } from './ui';
 
-const EXAMPLES = ['40×30×20 mm kutu, kenarlar 2 mm yuvarlatılmış', 'Ø100 mm, 10 mm kalın, 6 cıvata delikli flanş', 'Ø25 × 60 mm boru, et kalınlığı 3 mm'];
+const EXAMPLES = [
+  'Kabartmalı seramik kahve kupası, ergonomik kulplu',
+  '12V-32V boost konvertör modülü ve soğutuculu kasası',
+  'Ø100 mm, 6× M6 havşalı delikli, göbekli flanş',
+];
 
 export function Home({ me, onStart }: { me: Me | null; onStart: (p: string, opts?: SendOptions) => void }) {
   const [pick, setPick] = useState('');
